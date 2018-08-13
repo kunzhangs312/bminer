@@ -144,4 +144,7 @@ def main():
     miner.join()
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv)<2:
+        print("please input the params name")
+    else:
+        main()

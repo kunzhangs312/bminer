@@ -41,8 +41,7 @@ class Miner(threading.Thread):
 
     def process(self):
         poller = select.poll()
-        READ_ONLY = (select.POLLIN | select.POLLPRI | select.POLLHUP | select.POLLERR)
-        poller.register(self.miner.stdout, READ_ONLY)
+        poller.register(self.miner.stdout,select.POLLIN)
         while True:
             ret_code = self.miner.poll()
             if ret_code is not None:
@@ -52,37 +51,25 @@ class Miner(threading.Thread):
                 print("miner stoped")
                 self.miner.kill()
                 return
-            poller.poll(60000)
+            time.sleep(60)
             self.get_miner_data()
+    def stop(self):
+        self.is_break = True
 
     def get_miner_data(self):
-        url = "http://127.0.0.1:3330/getstat"
+        url = "http://127.0.0.1:3333"
         res = requests.get(url)
         data = json.loads(res.text)
-        program_name = "ewbf-miner"
-        coin = self.coin
+        program_name = "xmrig-amd"
         ret = []
-        speed = 0
-        for item in data.get('result', []):
-            hash = item.get('speed_sps',0)
-            speed += hash
-            info = item.get('name',0)
-            id = item.get('gpuid',0)
-            temperature = item.get('temperature',0)
-            gpu_power_usage = item.get('gpu_power_usage',0)
-            res = {"id": id, "info": info, "hash": hash,"temperature":temperature,"gpu_power_usage":gpu_power_usage}
-            ret.append(res)
-        speed = str(speed)+" Sol/s"
-        str_ = {"mac": self.mac, "time": time.time(), "speed": speed, "program_name": program_name, "coin": coin,
+        speed = str(data['hashrate']['highest']) +" Bhash/s"
+        str_ = {"mac": self.mac, "time": time.time(), "speed": speed, "program_name": program_name, "coin": self.coin,
                 "devices": ret}
         json_info = json.dumps(str_)
         if self.producer is None:
             self.producer = self.getProducer()
         self.producer.produce(bytes(json_info, encoding="utf8"))
         print(json_info)
-
-    def stop(self):
-        self.is_break = True
 
     def getProducer(self):
         client = KafkaClient(hosts="192.168.0.69:9092")
@@ -100,29 +87,31 @@ class Miner(threading.Thread):
 
 def get_miner_config():
     str = """
-        {"id":24774,"service_type":"Zcash","status":0,"on":true,"config":{"Version":3,"Overclock":1,"Program":"ewbf-miner","Algorithm":"ethash","Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth","WalletAddress":"t1emzuNbemjqnEhEue74NL3BxsR4cA1ajfP","PoolAddress":"zec-eu1.nanopool.org:6666","PoolName":"uupool.cn","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"Secondary":{"CoinName":"","WalletAddress":"","PoolAddresses":null,"PoolName":"","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"MinerPrefix":"92","MinerPostfix":"92","App":{"Name":"","Version":""}},"overclock_info":{"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,"PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,"GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}
+        {"id":24774,"service_type":"Zcash","status":0,"on":true,"config":{"Version":3,"Overclock":1,"Program":"ewbf-miner","Algorithm":"ethash","Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth","WalletAddress":"48LHRj3T9Jfeq87sikft1ijRzuGjo5w21ALP5gnvPeTkdqGgh2qQo7LXwKpuFDnoEUWhyHZrWsiuxVqHkAikyAuo1t9y5zE","PoolAddress":"xmr.f2pool.com:13531","PoolName":"uupool.cn","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"Secondary":{"CoinName":"","WalletAddress":"","PoolAddresses":null,"PoolName":"","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"MinerPrefix":"92","MinerPostfix":"92","App":{"Name":"","Version":""}},"overclock_info":{"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,"PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,"GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}
     """
-    str = sys.argv[1]
     json_conf = json.loads(str)
     json_conf["config"]["Worker"] = "jianhuaixie"
     return json_conf["config"]
 
 def renderCmd(pwd):
     config = get_miner_config()
-    Bin = '{}/ewbf-miner/miner '.format(pwd)
+    Bin = 'echo 14000 > /proc/sys/vm/nr_hugepages; {}/lukminer-phi/luk-phi '.format(pwd)
     Primary = config['Primary']
     if len(Primary['WalletAddress']) == 0:
         print('none WalletAddress')
         return None
-    Bin += "--server {} ".format(Primary['PoolAddress'].split(":")[0])
-    Bin += "--port {} ".format(Primary['PoolAddresses'].split(":")[1])
+    if 'cryptonight' == config['Algorithm']:
+        Bin += "-a xmr-v7 "
+    else:
+        Bin += "-a {} ".format(config['Algorithm'])
     Bin += "--user {}.{} ".format(Primary['WalletAddress'], config['Worker'])
-    Bin += "--pass x --api 127.0.0.1:3330 "
+    Bin += "--host {} ".format(Primary['PoolAddress'].split(":")[0])
+    Bin += "--port {} ".format(Primary['PoolAddress'].split(":")[1])
+    Bin += "--pass x "
+
     if len(config['Extra']) > 0:
         Bin += config['Extra']
-    else:
-        Bin += "--eexit 1"
-    return Bin
+    return Bin + " 2>&1"
 
 def main():
     fpath = os.path.dirname(os.path.realpath(__file__))
@@ -135,7 +124,4 @@ def main():
     miner.join()
 
 if __name__ == '__main__':
-    if len(sys.argv)<2:
-        print("please input the params name")
-    else:
-        main()
+    main()

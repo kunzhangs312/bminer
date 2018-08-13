@@ -92,7 +92,7 @@ def getMac():
 def get_out_ip():
     text = requests.get("http://txt.go.sohu.com/ip/soip").text
     ip = re.findall(r'\d+.\d+.\d+.\d+', text)
-    return ip
+    return ip[0]
 
 def getIP():
     try:
