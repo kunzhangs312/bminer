@@ -38,6 +38,13 @@ def getDisk():
 def getCPU():
     return psutil.cpu_percent()
 
+def getCPUFREQ():
+    cpufreq = psutil.cpu_freq()
+    current = cpufreq.current
+    min = cpufreq.min
+    max = cpufreq.max
+    return {"current":current,"min":min,"max":max}
+
 def getCPUType():
     cpu_type = None
     with open('/proc/cpuinfo') as f:
@@ -147,37 +154,79 @@ def main():
     mem = getMem()  # {'inactive': '441.24', 'percent': 94.1, 'total': '1743.71', 'free': '81.80', 'cached': '162.67', 'buffers': '20.31', 'active': '1072.55', 'used': '1478.93', 'shared': '15.42'}
     cores = getCores()
     cpuUsage = getCPU()
+    cpu_freq = getCPUFREQ()
     disks = getDisk()  # [{'device': '/dev/sda1', 'free': 21241, 'used': 14969, 'total': 38172, 'percent': 41.3}]
     cpu_t = GetCPUorDiskTemper()["cpu_top"]
     cpu_type = getCPUType()
     boot_time = getBoottime()
     gpu_infos = get_gpu_infos()
-    info = {"mac": mac,"platform":platform, "ip": ip,"out_ip":out_ip, "in_flow": in_, "out_flow": out_, "cores": cores, "cpu_usage": cpuUsage,
+    info = {"mac": mac,"platform":platform, "ip": ip,"out_ip":out_ip, "in_flow": in_, "out_flow": out_, "cores": cores, "cpu_usage": cpuUsage,"cpu_freq":cpu_freq,
             "cpu_temperature": cpu_t,"cpu_type":cpu_type, "disks": disks, "memory": mem, "time": time.time(),"boot_time":boot_time,"gpu_infos":gpu_infos}
     json_info = json.dumps(info)
     return json_info
 
 
 def get_gpu_infos():
-    p = subprocess.Popen("nvidia-smi -q -x",shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    stdout,_ = p.communicate()
-    xml_str = str(stdout,encoding='utf-8')
     gpu_infos = []
-    if len(xml_str)>100:
-        page = ElementTree.fromstring(xml_str)
-        if page is not None:
-            gpus = page.getiterator("gpu")
-            for gpu in gpus:
-                product_name = gpu.find("product_name").text
-                fb_memory_usage = gpu.find("fb_memory_usage")
-                total = fb_memory_usage.find("total").text
-                used = fb_memory_usage.find("used").text
-                free = fb_memory_usage.find("free").text
-                gpu_temperature = gpu.find("temperature").find("gpu_temp").text
-                gpu_power = gpu.find("power_readings").find("power_draw").text
-                power_limit = gpu.find("power_readings").find("power_limit").text
-                gpu_info = {"product_name":product_name,"total":total,"used":used,"free":free,"gpu_temperature":gpu_temperature,"gpu_power":gpu_power,"power_limit":power_limit}
-                gpu_infos.append(gpu_info)
+    p = subprocess.Popen("lspci |grep VGA", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, _ = p.communicate()
+    stdout = str(stdout, encoding='utf-8')
+    if "AMD" in stdout:
+        print("AMD Card")
+        p = subprocess.Popen("/opt/amdcovc-0.3.9.2/amdcovc -v", shell=True, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+        stdout, _ = p.communicate()
+        stdout = str(stdout, encoding='utf-8')
+        if "Adapter" in stdout:
+            stdouts = stdout.split("Adapter")
+            for std in stdouts:
+                if len(std) > 200:
+                    stds = std.split("\n")
+                    if (len(stds)) > 14:
+                        product_name = stds[0].split(":")[-1].strip()
+                        gpu_temperature = stds[11].split(":")[-1].strip()
+                        fan_speed = stds[15].split(":")[-1].strip()
+                        gpu_load = stds[8].split(":")[-1].strip()
+                        gpu_info = {"fan_speed": fan_speed, "process_program": None,
+                                    "product_name": product_name, "total": None, "used": None,"gpu_load":gpu_load, "free": None,
+                                    "gpu_temperature": gpu_temperature, "gpu_power": None,
+                                    "power_limit": None}
+                        gpu_infos.append(gpu_info)
+    elif "NVIDIA" in stdout:
+        print("NVIDIA Card")
+        p = subprocess.Popen("nvidia-smi -q -x", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, _ = p.communicate()
+        xml_str = str(stdout, encoding='utf-8')
+        if len(xml_str) > 100:
+            page = ElementTree.fromstring(xml_str)
+            if page is not None:
+                gpus = page.getiterator("gpu")
+                for gpu in gpus:
+                    product_name = gpu.find("product_name").text
+                    fan_speed = gpu.find("fan_speed").text
+                    fb_memory_usage = gpu.find("fb_memory_usage")
+                    utilization = gpu.find("utilization")
+                    total = fb_memory_usage.find("total").text
+                    used = fb_memory_usage.find("used").text
+                    gpu_load = utilization.find("gpu_util").text
+                    free = fb_memory_usage.find("free").text
+                    gpu_temperature = gpu.find("temperature").find("gpu_temp").text
+                    gpu_power = gpu.find("power_readings").find("power_draw").text
+                    power_limit = gpu.find("power_readings").find("power_limit").text
+                    processes = gpu.find("processes")
+                    process_program = []
+                    if processes is not None:
+                        process_info = processes.getiterator("process_info")
+                        for process in process_info:
+                            process_name = process.find("process_name").text
+                            used_memory = process.find("used_memory").text
+                            process_program.append({"process_name": process_name, "used_memory": used_memory})
+                    gpu_info = {"fan_speed": fan_speed, "process_program": process_program,
+                                "product_name": product_name, "total": total, "used": used, "gpu_load":gpu_load,"free": free,
+                                "gpu_temperature": gpu_temperature, "gpu_power": gpu_power, "power_limit": power_limit}
+                    gpu_infos.append(gpu_info)
+    else:
+        print("None GPU Card")
     return gpu_infos
 
 if __name__ == '__main__':

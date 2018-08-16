@@ -8,6 +8,7 @@ import json
 import threading
 import os
 import requests
+import sys
 
 class Miner(threading.Thread):
     miner = None

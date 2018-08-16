@@ -30,7 +30,9 @@ def main(name):
         client = KafkaClient(hosts="192.168.0.69:9092")
         topic = client.topics[b'operate']
         producer = topic.get_producer()
-        str_ = {"operator_type": "remove", "status": status, "mac": mac, "time": time.time(),"program":name,"operate_name":"remove"}
+        userid = sys.argv[2]
+        id = sys.argv[3]
+        str_ = {"id":id,"userid":userid,"operator_type": "remove", "status": status, "mac": mac, "time": time.time(),"program":name,"operate_name":"remove"}
         json_info = json.dumps(str_)
         producer.produce(bytes(json_info, encoding="utf8"))
         print(json_info)
@@ -40,7 +42,7 @@ def main(name):
         producer.stop()
 
 if __name__ == '__main__':
-    if len(sys.argv)<2:
+    if len(sys.argv)<4:
         print("please input the params name")
     else:
         name = sys.argv[1]
