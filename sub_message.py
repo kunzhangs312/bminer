@@ -3,6 +3,8 @@ import json
 import time
 import os
 
+MAC = None
+
 def getMac():
     import uuid
     node = uuid.getnode()
@@ -78,12 +80,13 @@ def process(mac0, data):
 if __name__ == '__main__':
     pool = redis.ConnectionPool(host='192.168.0.69', port='6379', db=0, password='sjdtwigkvsmdsjfkgiw23usfvmkj2')
     conn = redis.Redis(connection_pool=pool)
-    mac = getMac()
-    channel = mac[0:2] + "_miner_channel"
+    if MAC is None:
+        MAC = getMac()
+    channel = MAC[0:2] + "_miner_channel"
     ps = conn.pubsub()
     ps.subscribe(channel)
     for item in ps.listen():
         if item['type'] == 'message':
             data = item['data']
-            if data is not None:
-                process(mac,data)
+            if data is not None and MAC is not None:
+                process(MAC,data)
