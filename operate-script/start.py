@@ -44,6 +44,7 @@ def main():
         node = uuid.getnode()
         mac = uuid.UUID(int=node).hex[-12:]
         return mac
+    producer = None
     try:
         client = KafkaClient(hosts="192.168.0.69:9092")
         topic = client.topics[b'operate']
