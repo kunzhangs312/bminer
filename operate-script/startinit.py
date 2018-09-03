@@ -15,7 +15,7 @@ def main():
                 j['time'] = time.time()
                 producer = None
                 try:
-                    client = KafkaClient(hosts="192.168.0.69:9092")
+                    client = KafkaClient(hosts="47.106.253.159:9092")
                     topic = client.topics[b'operate']
                     producer = topic.get_producer()
                     json_info = json.dumps(j)

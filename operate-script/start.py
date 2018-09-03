@@ -46,7 +46,7 @@ def main():
         return mac
     producer = None
     try:
-        client = KafkaClient(hosts="192.168.0.69:9092")
+        client = KafkaClient(hosts="47.106.253.159:9092")
         topic = client.topics[b'operate']
         producer = topic.get_producer()
         mac = getMac()

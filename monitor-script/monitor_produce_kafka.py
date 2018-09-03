@@ -230,7 +230,7 @@ def get_gpu_infos():
     return gpu_infos
 
 if __name__ == '__main__':
-    client = KafkaClient(hosts="192.168.0.69:9092")
+    client = KafkaClient(hosts="47.106.253.159:9092")
     topic = client.topics[b'monitor']
     producer = topic.get_producer()
     while True:
