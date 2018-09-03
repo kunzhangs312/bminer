@@ -8,6 +8,7 @@ import json
 import threading
 import os
 import requests
+import sys
 
 class Miner(threading.Thread):
     miner = None
@@ -95,7 +96,7 @@ class Miner(threading.Thread):
         self.coin = json_conf["Primary"]["CoinName"]
 
     def getProducer(self):
-        client = KafkaClient(hosts="192.168.0.69:9092")
+        client = KafkaClient(hosts="47.106.253.159:9092")
         topic = client.topics[b'miner']
         self.producer = topic.get_producer()
 

@@ -100,7 +100,7 @@ class Miner(threading.Thread):
         self.is_break = True
 
     def getProducer(self):
-        client = KafkaClient(hosts="192.168.0.69:9092")
+        client = KafkaClient(hosts="47.106.253.159:9092")
         topic = client.topics[b'miner']
         self.producer = topic.get_producer()
 

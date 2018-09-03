@@ -53,7 +53,7 @@ class my_miner:
             self.producer.produce(bytes(json_info, encoding="utf8"))
             print(json_info)
     def getProducer(self):
-        client = KafkaClient(hosts="192.168.0.69:9092")
+        client = KafkaClient(hosts="47.106.253.159:9092")
         topic = client.topics[b'miner']
         self.producer = topic.get_producer()
     def getMac(self):
