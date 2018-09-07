@@ -2,8 +2,10 @@ import redis
 import json
 import time
 import subprocess
+import random
 
 MAC = None
+SYN = None
 
 def getMac():
     import uuid
@@ -91,5 +93,30 @@ if __name__ == '__main__':
     for item in ps.listen():
         if item['type'] == 'message':
             data = item['data']
-            if data is not None and MAC is not None:
-                process(MAC,data)
+            data = str(data, encoding='utf-8')
+            message = json.loads(data)
+            maclist = message['maclist']
+            if MAC in maclist:
+                taskid = message['taskid']
+                SYN = random.randint(0, 100000000)
+                response = '{"taskid":'+taskid+', "maclist":["'+MAC+'"], "syn":'+SYN+'}'
+                conn.publish("BrokerMachineChannel", response)
+                time.sleep(0.5)
+                ps.subscribe("BrokerMachineChannel")
+                for _item_ in ps.listen():
+                    if _item_['type'] == 'message':
+                        data = _item_['data']
+                        data = str(data, encoding='utf-8')
+                        message = json.loads(data)
+                        maclist = message['maclist']
+                        ack = message['ack']
+                        if MAC in maclist and ack==SYN+1:
+                            parameter = message['parameter']
+                            process(MAC, parameter)
+                            break
+                        else:
+                            conn.publish("BrokerMachineChannel", response)
+                            time.sleep(1)
+                    else:
+                        conn.publish("BrokerMachineChannel", response)
+                        time.sleep(1)
