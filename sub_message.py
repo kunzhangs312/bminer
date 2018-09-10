@@ -35,11 +35,14 @@ class SubMessage(object):
                 {"action":"", "parameter":{}, "maclist":[], "taskid":""}
         """
         while True:
-            receive_data = self.conn.brpop(self.machine_channel,timeout=0)
-            receive_data = receive_data[1].decode()
-            receive_data = eval(receive_data)
-            # 创建一个协程完成与服务器的所有交互
-            asyncio.run_coroutine_threadsafe(self.handler(receive_data),self._loop)
+            ps = self.ps.subscribe(self.machine_channel)
+            for item in self.ps.listen():
+                if item['type'] == 'message':
+                    receive_data = eval(item['data'])
+                    resp_mac_list = receive_data.get('maclist', None)
+                    if self.mac in resp_mac_list:
+                        # 创建一个协程完成与服务器的所有交互
+                        asyncio.run_coroutine_threadsafe(self.handler(receive_data), self._loop)
 
     async def handler(self,receive_data):
         """
@@ -47,38 +50,35 @@ class SubMessage(object):
         :param receive_data:
         :return:
         """
-        # 首先判断消息是否需要进行处理
-        maclist = receive_data['maclist']
-        if self.mac in maclist:
-            # 创建一个协程完成接收到命令的回报通知
-            self.syn = random.randint(0, 100000000)
-            response_data = {"taskid":receive_data['taskid'], "maclist":[self.mac], "resp_type":"confirm", "syn":self.syn}
-            response_data_str = json.dumps(response_data)
-            asyncio.run_coroutine_threadsafe(self.handler_publish(response_data_str),self._loop)
-            # 监听 BrokerMachineChannel 通道，等待服务器的应答
-            handle_taskid = receive_data['taskid']
-            self.ps.subscribe(self.machine_channel)
-            for item in self.ps.listen():
-                if item['type'] == 'message':
-                    resp_dict = eval(item['data'])
-                    resp_taskid = resp_dict.get('taskid', None)
-                    if handle_taskid != resp_taskid:
-                        continue
-                    resp_mac_list = resp_dict.get('maclist', None)
-                    if not len(resp_mac_list):
-                        print("machine return data maclist is blank!")
-                        continue
-                    resp_mac = resp_mac_list[0]
-                    if resp_mac != self.mac:
-                        continue
-                    ack = resp_dict.get('ack', None)
-                    if self.syn+1 != ack:
-                        continue
-                    resp_type = resp_dict.get('resp_type', None)
-                    if resp_type != 'confirm':
-                        continue
-                    syn = resp_dict.get('syn', None)
-                    self.handler_response(resp_dict,resp_type,syn)
+        # 创建一个协程完成接收到命令的回报通知
+        self.syn = random.randint(0, 100000000)
+        response_data = {"taskid":receive_data['taskid'], "maclist":[self.mac], "resp_type":"confirm", "syn":self.syn}
+        response_data_str = json.dumps(response_data)
+        asyncio.run_coroutine_threadsafe(self.handler_publish(response_data_str),self._loop)
+        # 监听 BrokerMachineChannel 通道，等待服务器的应答
+        handle_taskid = receive_data['taskid']
+        self.ps.subscribe(self.machine_channel)
+        for item in self.ps.listen():
+            if item['type'] == 'message':
+                resp_dict = eval(item['data'])
+                resp_taskid = resp_dict.get('taskid', None)
+                if handle_taskid != resp_taskid:
+                    continue
+                resp_mac_list = resp_dict.get('maclist', None)
+                if not len(resp_mac_list):
+                    print("machine return data maclist is blank!")
+                    continue
+                resp_mac = resp_mac_list[0]
+                if resp_mac != self.mac:
+                    continue
+                ack = resp_dict.get('ack', None)
+                if self.syn+1 != ack:
+                    continue
+                resp_type = resp_dict.get('resp_type', None)
+                if resp_type != 'confirm':
+                    continue
+                syn = resp_dict.get('syn', None)
+                self.handler_response(resp_dict,resp_type,syn)
 
     def handler_response(self,data,resp_type,syn):
         """
