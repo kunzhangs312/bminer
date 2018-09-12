@@ -1,23 +1,44 @@
-import redis
-import json
-import time
-import subprocess
-import random
 import asyncio
-from threading import Thread
+import json
+import random
+import subprocess
+import time
 import uuid
+from copy import deepcopy
+from threading import Thread
+from datetime import datetime
+
+import redis
+
+AUTO_RESET_TIMEOUT = 20 * 60        # 自动恢复超时时间(s)，防止当服务器超时关闭后，矿机一直陷入非listen状态，无法接收新的任务。
+
 
 class SubMessage(object):
-    def __init__(self,host="47.106.253.159",port=6379,db=0,password='sjdtwigkvsmdsjfkgiw23usfvmkj2'):
-        self.machine_channel = "BrokerMachineChannel"
-        self.pool = redis.ConnectionPool(host=host, port=port, db=db,password=password)
+    def __init__(self, host="47.106.253.159", port=6379, db=3, password='sjdtwigkvsmdsjfkgiw23usfvmkj2'):
+        self.subscribe_task_channel = "BrokerMachineChannel"
+        self.publish_task_channel = "MachineBrokerChannel"
+        self.subscribe_channel = None
+        self.publish_channel = None
+        self.pool = redis.ConnectionPool(host=host, port=port, db=db, password=password)
         self.conn = redis.Redis(connection_pool=self.pool)
         self.ps = self.conn.pubsub()
         self._loop = asyncio.new_event_loop()
         node = uuid.getnode()
         self.mac = uuid.UUID(int=node).hex[-12:]
-        self.syn = None
+        self.syn = random.randint(10, 100000)
         self.ack = None
+        self.state = "INITIALIZE"  # ["INITIALIZE", "LISTEN", "RESPONSE_SYNCHRONIZE", "RESPONSE_ACKNOWLEDGE",
+                                   #  "EXECUTING", "FINISH_SYNCHRONIZE", "FINISH_ACKNOWLEDGE"]
+        self.taskid = None  # 正在执行的指令ID
+        self.parameter = None
+        self._start_time = None
+
+    def is_json(myjson):
+        try:
+            json.loads(myjson)
+        except ValueError:
+            return False
+        return True
 
     @staticmethod
     def start_loop(loop):
@@ -25,90 +46,189 @@ class SubMessage(object):
         loop.run_forever()
 
     def start_thread(self):
-        t = Thread(target=self.start_loop,args=(self._loop,))
+        t = Thread(target=self.start_loop, args=(self._loop,))
         t.setDaemon(True)
         t.start()
+
+    def timeout(self):
+        """检查任务是否超时，如果超时，则复位任务"""
+        now = datetime.now()
+        if (now-self._start_time) >= AUTO_RESET_TIMEOUT:
+            self.taskid = None
+            self.parameter = None
+            self._start_time = None
+            self.state = "LISTEN"
+
+            # reset subscribe and publish channel
+            self.ps.close()
+            self.subscribe_channel = None
+            self.publish_channel = None
+            self.ps.subscribe(self.subscribe_task_channel)
+            return True
+        else:
+            return False
 
     def receive(self):
         """
         该方法从服务器端接收到执行命令，数据格式如下：
-                {"action":"", "parameter":{}, "maclist":[], "taskid":""}
+        {"action":"", "parameter":{}, "maclist":[], "taskid":""}
         """
-        while True:
-            ps = self.ps.subscribe(self.machine_channel)
-            for item in self.ps.listen():
-                if item['type'] == 'message':
-                    receive_data = eval(item['data'])
-                    resp_mac_list = receive_data.get('maclist', None)
-                    if self.mac in resp_mac_list:
-                        # 创建一个协程完成与服务器的所有交互
-                        asyncio.run_coroutine_threadsafe(self.handler(receive_data), self._loop)
+        # 监听machine_channel通道，等待服务器下发操作指令
+        self.ps.subscribe(self.subscribe_task_channel)
+        self.state = "LISTEN"
+        for item in self.ps.listen():
+            if item['type'] == 'message':
+                receive_data = eval(item['data'])
+                resp_mac_list = receive_data.get('maclist', None)
+                print("receive new task: ", receive_data)
+                if self.mac in resp_mac_list:
+                    if self.state == "LISTEN":
+                        # 创建一个协程发送同步响应，并等待服务器的应答
+                        print("in LISTEN")
+                        if self.taskid == receive_data.get("taskid", None):     # 跳过已经执行或者正在执行的指令
+                            continue
+                        self.taskid = receive_data.get("taskid", None)
+                        self._start_time = datetime.now()        # 记录该任务开始执行的时间
 
-    async def handler(self,receive_data):
+                        if self.taskid:         # 更换订阅和发布通道
+                            self.ps.close()
+                            self.subscribe_channel = self.subscribe_task_channel + self.taskid.upper()
+                            self.publish_channel = self.publish_task_channel + self.taskid.upper()
+                            print("change subscribe and publish channel")
+                            self.ps.subscribe(self.subscribe_channel)
+
+                        self.parameter = receive_data.get("parameter", None)
+                        print("change state to RESPONSE_SYNCHRONIZE")
+                        self.state = "RESPONSE_SYNCHRONIZE"
+                        asyncio.run_coroutine_threadsafe(self.response_synchronize(), self._loop)
+                    elif self.state == "RESPONSE_SYNCHRONIZE":
+                        print("in RESPONSE_SYNCHRONIZE")
+
+                        # 检查当前的任务是否超时
+                        if self.timeout():
+                            continue
+
+                        if self.taskid != receive_data.get("taskid", None):     # 跳过不是当前执行的指令
+                            continue
+
+                        # 参数检查
+                        if not self.check_response(deepcopy(receive_data), resp_type="confirm"):
+                            continue
+                        print("change state to RESPONSE_ACKNOWLEDGE")
+                        self.state = "RESPONSE_ACKNOWLEDGE"     # 修改状态机的状态，终止synchronize方法持续发送同步信息
+                        # 创建一个协程完成服务器下发的指令
+                        asyncio.run_coroutine_threadsafe(self.handler(deepcopy(receive_data)), self._loop)
+                    elif self.state == "FINISH_SYNCHRONIZE":
+                        print("in FINISH_SYNCHRONIZE")
+
+                        # 检查当前任务是否超时
+                        if self.timeout():
+                            continue
+
+                        if self.taskid != receive_data.get("taskid", None):     # 跳过不是当前执行的指令
+                            continue
+
+                        # 参数检查
+                        if not self.check_response(deepcopy(receive_data), resp_type="completed"):
+                            continue
+                        print("change state to FINISH_ACKNOWLEDGE")
+                        self.state = "FINISH_ACKNOWLEDGE"       # 修改状态机的状态，终止synchronize方法持续发送同步信息
+                        print("change state to LISTEN")
+                        self.state = "LISTEN"                   # 将状态机恢复到LISTEN状态，准备接收服务器的操作指令
+
+                        # 更换订阅和发布通道，等待下一个任务的到来
+                        self.ps.close()
+                        self.subscribe_channel = None
+                        self.publish_channel = None
+                        print("reset subscribe and publish channel")
+                        self.ps.subscribe(self.subscribe_task_channel)
+                    else:
+                        if self.timeout():
+                            continue
+
+    async def response_synchronize(self, result=None):
         """
-        该方法从Redis通道“BrokerMachineChannel”中获得操作命令，完成与服务器交互的整个过程。
+        将数据发送给服务器，并等待服务器的应答
+        :return:
+        """
+        if self.state != "RESPONSE_SYNCHRONIZE":
+            return
+
+        if self.publish_channel[-8:] != self.taskid.upper():
+            return
+
+        response_data = {"taskid": self.taskid, "maclist": [self.mac], "resp_type": "confirm", "syn": self.syn}
+
+        # response_data_str = json.dumps(response_data)
+        while self.state == "RESPONSE_SYNCHRONIZE":
+            print("state: {0},channel-{1} send synchronize: {2}".format(self.state, self.publish_channel, response_data))
+            self.conn.publish(self.publish_channel, response_data)
+            await asyncio.sleep(1)
+
+    async def finish_synchronize(self, result=None):
+        """
+        将数据发送给服务器，并等待服务器的应答
+        :return:
+        """
+        if self.state != "FINISH_SYNCHRONIZE":
+            return
+
+        if self.publish_channel[-8:] != self.taskid.upper():
+            return
+
+        response_data = {"taskid": self.taskid, "maclist": [self.mac],
+                         "resp_type": "completed", "syn": self.syn, "result": result}
+
+        # response_data_str = json.dumps(response_data)
+        while self.state == "FINISH_SYNCHRONIZE":
+            print("state: {0},channel-{1} send synchronize: {2}".format(self.state, self.publish_channel, response_data))
+            self.conn.publish(self.publish_channel, response_data)
+            await asyncio.sleep(1)
+
+    def check_response(self, receive_data, resp_type):
+        """
+        对服务器的同步信息的应答做检查
+        :param receive_data:
+        :param resp_type:
+        :return:
+        """
+        if receive_data.get('taskid', None) != self.taskid or \
+                receive_data.get('ack', None) != self.syn + 1 or \
+                receive_data.get('resp_type', None) != resp_type:
+            return False
+
+        return True
+
+    async def handler(self, receive_data):
+        """
+        完成服务器下发的操作指令
         :param receive_data:
         :return:
         """
-        # 创建一个协程完成接收到命令的回报通知
-        self.syn = random.randint(0, 100000000)
-        response_data = {"taskid":receive_data['taskid'], "maclist":[self.mac], "resp_type":"confirm", "syn":self.syn}
-        response_data_str = json.dumps(response_data)
-        asyncio.run_coroutine_threadsafe(self.handler_publish(response_data_str),self._loop)
-        # 监听 BrokerMachineChannel 通道，等待服务器的应答
-        handle_taskid = receive_data['taskid']
-        self.ps.subscribe(self.machine_channel)
-        for item in self.ps.listen():
-            if item['type'] == 'message':
-                resp_dict = eval(item['data'])
-                resp_taskid = resp_dict.get('taskid', None)
-                if handle_taskid != resp_taskid:
-                    continue
-                resp_mac_list = resp_dict.get('maclist', None)
-                if not len(resp_mac_list):
-                    print("machine return data maclist is blank!")
-                    continue
-                resp_mac = resp_mac_list[0]
-                if resp_mac != self.mac:
-                    continue
-                ack = resp_dict.get('ack', None)
-                if self.syn+1 != ack:
-                    continue
-                resp_type = resp_dict.get('resp_type', None)
-                if resp_type != 'confirm':
-                    continue
-                syn = resp_dict.get('syn', None)
-                self.handler_response(resp_dict,resp_type,syn)
+        if self.state != "RESPONSE_ACKNOWLEDGE":
+            return
+        else:
+            print("change state to EXECUTING")
+            self.state = "EXECUTING"
+            parameter = self.parameter
+            result = self.process(self.mac, parameter)
+            # 给服务器发送指令完成的同步信息
+            print("change state to FINISH_SYNCHRONIZE")
+            self.state = "FINISH_SYNCHRONIZE"
+            asyncio.run_coroutine_threadsafe(self.finish_synchronize(result), self._loop)
 
-    def handler_response(self,data,resp_type,syn):
-        """
-        矿机执行命令，然后给服务器发送完成的命令
-        :param data:
-        :param resp_type:
-        :param syn:
-        :return:
-        """
-        parameter = data['parameter']
-        self.process(self.mac,parameter)
-        # 给服务器发送完成的命令
-        data['resp_type'] = 'completed'
-        self.handler_publish(self.machine_channel,data)
-
-    async def handler_publish(self,data,count=3):
-        """用来给服务器发布回报通知，连续发3次，间隔逐渐增大"""
-        for cnt in range(count):
-            self.conn.publish(self.machine_channel,data)
-            time.sleep(cnt)
-
-    def run_forver(self):
+    def run_forever(self):
         self.start_thread()
         self.receive()
 
-    def process(self,mac0,data):
+    def process(self, mac0, data):
         try:
             data = str(data, encoding='utf-8')
             message = json.loads(data)
             mac = message['mac']
+            id = data["id"]
+            userid = data["userid"]
+            operate = data["operate"]
             if mac0 == mac:
                 time_ = message['time']
                 # set a timeout 5 min
@@ -116,10 +236,7 @@ class SubMessage(object):
                 timeout = now - time_
                 if timeout < 5 * 60:
                     type = data["type"]
-                    id = data["id"]
-                    userid = data["userid"]
                     if type == "miner":
-                        operate = data["operate"]
                         if operate == "start":
                             params = data["params"]
                             Overclock = params["Overclock"]
@@ -133,7 +250,11 @@ class SubMessage(object):
                                 cmd = "python3 ./operate-script/notoverlock.py"
                                 subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                             cmd = "python3 ./operate-script/start.py " + json_str + " " + userid + " " + id
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                         elif operate == "restart":
                             kill = data["kill"]
                             if kill is not None:
@@ -151,28 +272,59 @@ class SubMessage(object):
                                 cmd = "python3 ./operate-script/notoverlock.py"
                                 subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                             cmd = "python3 ./operate-script/start.py " + json_str
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                     elif type == "operate":
                         operate = data['operate']
-                        kill = data["kill"]
                         if operate == "stop":
+                            kill = data["kill"]
                             cmd = "python3 ./operate-script/stop.py " + kill + " " + userid + " " + id
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                         elif operate == "remove":
+                            kill = data["kill"]
                             cmd = "python3 ./operate-script/remove.py " + kill + " " + userid + " " + id
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                         elif operate == "reboot":
                             cmd = "python3 ./operate-script/reboot.py " + userid + " " + id
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                         elif operate == "shutdown":
                             cmd = "python3 ./operate-script/shutdown.py " + userid + " " + id
-                            subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                            stdout, _ = p.communicate()
+                            out = stdout.decode('utf-8')
+                            if self.is_json(out):
+                                return json.loads(out)
                     elif type == "others":
                         cmd = data['operate']
-                        subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                        stdout, _ = p.communicate()
+                        out = stdout.decode('utf-8')
+                        if self.is_json(out):
+                            return json.loads(out)
+                else:
+                    resp = {"mac":mac,"time":time.time(),"id":id,"userid":userid,"status":"命令超时","program":"null","operate_name":operate}
+                    return resp
+            else:
+                resp = {"mac": mac, "time": time.time(), "id": id, "userid": userid, "status": "MAC匹配错误", "program": "null", "operate_name": operate}
+                return resp
         except Exception as e:
             print(e)
 
 if __name__ == '__main__':
     submessage = SubMessage()
-    submessage.run_forver()
+    submessage.run_forever()

@@ -134,7 +134,7 @@ def renderCmd(pwd):
     return Bin
 
 def main():
-    fpath = os.path.dirname(os.path.realpath(__file__))
+    fpath = "/opt/miner"
     ch2dir = "{}/bin".format(fpath)
     cmdline = renderCmd(ch2dir)
     if not cmdline: return
