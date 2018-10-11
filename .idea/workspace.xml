@@ -24,12 +24,12 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="451" />
+          <entry key="py" value="472" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="451" />
+          <entry key="Python" value="472" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -49,12 +49,12 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/sub_message.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="213">
-              <caret line="82" column="24" lean-forward="true" selection-start-line="82" selection-start-column="24" selection-end-line="82" selection-end-column="24" />
+            <state relative-caret-position="-2683">
+              <caret line="50" column="8" selection-start-line="50" selection-start-column="8" selection-end-line="50" selection-end-column="8" />
               <folding>
                 <element signature="e#0#14#0" expanded="true" />
                 <element signature="e#9325#12036#0" />
-                <marker date="1539241199439" expanded="true" signature="9342:9360" ph="..." />
+                <marker date="1539241539814" expanded="true" signature="9797:9815" ph="..." />
               </folding>
             </state>
           </provider>
@@ -186,7 +186,7 @@
     <frame x="0" y="0" width="1366" height="718" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.16389728" />
+      <window_info content_ui="combo" id="Project" order="0" weight="0.16389728" />
       <window_info id="Structure" order="1" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Docker" show_stripe_button="false" />
@@ -235,12 +235,12 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/sub_message.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="213">
-          <caret line="82" column="24" lean-forward="true" selection-start-line="82" selection-start-column="24" selection-end-line="82" selection-end-column="24" />
+        <state relative-caret-position="-2683">
+          <caret line="50" column="8" selection-start-line="50" selection-start-column="8" selection-end-line="50" selection-end-column="8" />
           <folding>
             <element signature="e#0#14#0" expanded="true" />
             <element signature="e#9325#12036#0" />
-            <marker date="1539241199439" expanded="true" signature="9342:9360" ph="..." />
+            <marker date="1539241539814" expanded="true" signature="9797:9815" ph="..." />
           </folding>
         </state>
       </provider>
