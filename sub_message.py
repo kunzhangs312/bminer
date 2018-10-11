@@ -7,8 +7,13 @@ import uuid
 from copy import deepcopy
 from threading import Thread
 import redis
+from datetime import datetime
 
 AUTO_RESET_TIMEOUT = 20 * 60        # 自动恢复超时时间(s)，防止当服务器超时关闭后，矿机一直陷入非listen状态，无法接收新的任务。
+
+
+def debug_helper(logstr):
+    print("[{time}] {logstr}".format(time=datetime.now().strftime('%m/%d %H:%M:%S.%s'), logstr=logstr))
 
 
 class SubMessage(object):
@@ -53,9 +58,11 @@ class SubMessage(object):
             time.sleep(60)
             # 尝试向redis-server发一条消息
             if not self.conn.ping():
-                print("oops~ redis-server get lost. call him back now!")
+                debug_helper("oops~ redis-server get lost. call him back now!")
                 del self.conn
                 self.conn = redis.StrictRedis(self.host, self.port, self.db, self.password)
+
+            debug_helper("keep alive")
 
     def start_thread(self):
         t = Thread(target=self.start_loop, args=(self._loop,))
@@ -89,7 +96,7 @@ class SubMessage(object):
         该方法从服务器端接收到执行命令，数据格式如下：
         {"action":"", "parameter":{}, "maclist":[], "taskid":""}
         """
-        print("machine mac: {}, start receive task from server ...".format(self.mac))
+        debug_helper("machine mac: {}, start receive task from server ...".format(self.mac))
 
         # 监听machine_channel通道，等待服务器下发操作指令
         self.ps.subscribe(self.subscribe_task_channel)
@@ -104,11 +111,11 @@ class SubMessage(object):
                 try:
                     receive_data = eval(mess['data'])
                     resp_mac_list = receive_data.get('maclist', None)
-                    print("receive new task: ", receive_data)
+                    debug_helper("receive new task: {0}".format(receive_data))
                     if self.mac in resp_mac_list:
                         if self.state == "LISTEN":
                             # 创建一个协程发送同步响应，并等待服务器的应答
-                            print("in LISTEN")
+                            debug_helper("in LISTEN")
                             if self.taskid == receive_data.get("taskid", None):     # 跳过已经执行或者正在执行的指令
                                 continue
                             self.taskid = receive_data.get("taskid", None)
@@ -118,15 +125,15 @@ class SubMessage(object):
                                 self.ps.close()
                                 self.subscribe_channel = self.subscribe_task_channel + self.taskid.upper()
                                 self.publish_channel = self.publish_task_channel + self.taskid.upper()
-                                print("change subscribe and publish channel")
+                                debug_helper("change subscribe and publish channel")
                                 self.ps.subscribe(self.subscribe_channel)
 
                             self.parameter = receive_data.get("parameter", None)
-                            print("change state to RESPONSE_SYNCHRONIZE")
+                            debug_helper("change state to RESPONSE_SYNCHRONIZE")
                             self.state = "RESPONSE_SYNCHRONIZE"
                             asyncio.run_coroutine_threadsafe(self.response_synchronize(), self._loop)
                         elif self.state == "RESPONSE_SYNCHRONIZE":
-                            print("in RESPONSE_SYNCHRONIZE")
+                            debug_helper("in RESPONSE_SYNCHRONIZE")
 
                             # 检查当前的任务是否超时
                             if self.timeout():
@@ -138,12 +145,12 @@ class SubMessage(object):
                             # 参数检查
                             if not self.check_response(deepcopy(receive_data), resp_type="confirm"):
                                 continue
-                            print("change state to RESPONSE_ACKNOWLEDGE")
+                            debug_helper("change state to RESPONSE_ACKNOWLEDGE")
                             self.state = "RESPONSE_ACKNOWLEDGE"     # 修改状态机的状态，终止synchronize方法持续发送同步信息
                             # 创建一个协程完成服务器下发的指令
                             asyncio.run_coroutine_threadsafe(self.handler(deepcopy(receive_data)), self._loop)
                         elif self.state == "FINISH_SYNCHRONIZE":
-                            print("in FINISH_SYNCHRONIZE")
+                            debug_helper("in FINISH_SYNCHRONIZE")
 
                             # 检查当前任务是否超时
                             if self.timeout():
@@ -155,22 +162,22 @@ class SubMessage(object):
                             # 参数检查
                             if not self.check_response(deepcopy(receive_data), resp_type="completed"):
                                 continue
-                            print("change state to FINISH_ACKNOWLEDGE")
+                            debug_helper("change state to FINISH_ACKNOWLEDGE")
                             self.state = "FINISH_ACKNOWLEDGE"       # 修改状态机的状态，终止synchronize方法持续发送同步信息
-                            print("change state to LISTEN")
+                            debug_helper("change state to LISTEN")
                             self.state = "LISTEN"                   # 将状态机恢复到LISTEN状态，准备接收服务器的操作指令
 
                             # 更换订阅和发布通道，等待下一个任务的到来
                             self.ps.close()
                             self.subscribe_channel = None
                             self.publish_channel = None
-                            print("reset subscribe and publish channel")
+                            debug_helper("reset subscribe and publish channel")
                             self.ps.subscribe(self.subscribe_task_channel)
                         else:
                             if self.timeout():
                                 continue
                 except Exception as error:
-                    print(error)
+                    debug_helper(error)
                     continue
 
     async def response_synchronize(self, result=None):
@@ -188,7 +195,9 @@ class SubMessage(object):
 
         # response_data_str = json.dumps(response_data)
         while self.state == "RESPONSE_SYNCHRONIZE":
-            print("state: {0},channel-{1} send synchronize: {2}".format(self.state, self.publish_channel, response_data))
+            debug_helper("state: {0},channel-{1} send synchronize: {2}".format(
+                self.state, self.publish_channel, response_data))
+
             self.conn.publish(self.publish_channel, response_data)
             await asyncio.sleep(1)
 
@@ -208,7 +217,9 @@ class SubMessage(object):
 
         # response_data_str = json.dumps(response_data)
         while self.state == "FINISH_SYNCHRONIZE":
-            print("state: {0},channel-{1} send synchronize: {2}".format(self.state, self.publish_channel, response_data))
+            debug_helper("state: {0},channel-{1} send synchronize: {2}".format(
+                self.state, self.publish_channel, response_data))
+
             self.conn.publish(self.publish_channel, response_data)
             await asyncio.sleep(1)
 
@@ -235,12 +246,12 @@ class SubMessage(object):
         if self.state != "RESPONSE_ACKNOWLEDGE":
             return
         else:
-            print("change state to EXECUTING")
+            debug_helper("change state to EXECUTING")
             self.state = "EXECUTING"
             parameter = self.parameter
             result = self.process(self.mac, parameter)
             # 给服务器发送指令完成的同步信息
-            print("change state to FINISH_SYNCHRONIZE")
+            debug_helper("change state to FINISH_SYNCHRONIZE")
             self.state = "FINISH_SYNCHRONIZE"
             asyncio.run_coroutine_threadsafe(self.finish_synchronize(result), self._loop)
 
@@ -369,6 +380,7 @@ class SubMessage(object):
                 return resp
         except Exception as e:
             print(e)
+
 
 if __name__ == '__main__':
     submessage = SubMessage()
