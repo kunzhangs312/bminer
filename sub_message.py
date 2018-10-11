@@ -13,12 +13,17 @@ AUTO_RESET_TIMEOUT = 20 * 60        # 自动恢复超时时间(s)，防止当服
 
 class SubMessage(object):
     def __init__(self, host="47.106.253.159", port=6379, db=3, password='sjdtwigkvsmdsjfkgiw23usfvmkj2'):
+        self.host = host
+        self.port = port
+        self.db = db
+        self.password = password
         self.subscribe_task_channel = "BrokerMachineChannel"
         self.publish_task_channel = "MachineBrokerChannel"
         self.subscribe_channel = None
         self.publish_channel = None
-        self.pool = redis.ConnectionPool(host=host, port=port, db=db, password=password)
-        self.conn = redis.Redis(connection_pool=self.pool)
+        # self.pool = redis.ConnectionPool(host=host, port=port, db=db, password=password)
+        # self.conn = redis.Redis(connection_pool=self.pool)
+        self.conn = redis.StrictRedis(host, port, db, password)
         self.ps = self.conn.pubsub()
         self._loop = asyncio.new_event_loop()
         node = uuid.getnode()
@@ -43,10 +48,23 @@ class SubMessage(object):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
+    def redis_keep_alive(self):
+        while True:
+            time.sleep(60)
+            # 尝试向redis-server发一条消息
+            if not self.conn.ping():
+                print("oops~ redis-server get lost. call him back now!")
+                del self.conn
+                self.conn = redis.StrictRedis(self.host, self.port, self.db, self.password)
+
     def start_thread(self):
         t = Thread(target=self.start_loop, args=(self._loop,))
         t.setDaemon(True)
         t.start()
+
+        ts = Thread(target=self.redis_keep_alive, args=())
+        ts.setDaemon(True)
+        ts.start()
 
     def timeout(self):
         """检查任务是否超时，如果超时，则复位任务"""
