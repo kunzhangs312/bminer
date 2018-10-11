@@ -6,8 +6,6 @@ import time
 import uuid
 from copy import deepcopy
 from threading import Thread
-from datetime import datetime
-
 import redis
 
 AUTO_RESET_TIMEOUT = 20 * 60        # 自动恢复超时时间(s)，防止当服务器超时关闭后，矿机一直陷入非listen状态，无法接收新的任务。
@@ -52,7 +50,7 @@ class SubMessage(object):
 
     def timeout(self):
         """检查任务是否超时，如果超时，则复位任务"""
-        now = datetime.now()
+        now = time.time()
         if (now-self._start_time) >= AUTO_RESET_TIMEOUT:
             self.taskid = None
             self.parameter = None
@@ -73,12 +71,24 @@ class SubMessage(object):
         该方法从服务器端接收到执行命令，数据格式如下：
         {"action":"", "parameter":{}, "maclist":[], "taskid":""}
         """
+        print("machine mac: {}, start receive task from server ...".format(self.mac))
+
         # 监听machine_channel通道，等待服务器下发操作指令
         self.ps.subscribe(self.subscribe_task_channel)
         self.state = "LISTEN"
-        for item in self.ps.listen():
-            if item['type'] == 'message':
-                receive_data = eval(item['data'])
+        while True:
+            # 监听subscribe_channel通道，等待矿机的应答
+            mess = self.ps.get_message(timeout=1.0)
+            if mess is None:
+                continue
+
+            if mess and mess['type'] == 'message':
+                try:
+                    receive_data = eval(mess['data'])
+                except Exception as error:
+                    print(error)
+                    continue
+
                 resp_mac_list = receive_data.get('maclist', None)
                 print("receive new task: ", receive_data)
                 if self.mac in resp_mac_list:
@@ -88,7 +98,7 @@ class SubMessage(object):
                         if self.taskid == receive_data.get("taskid", None):     # 跳过已经执行或者正在执行的指令
                             continue
                         self.taskid = receive_data.get("taskid", None)
-                        self._start_time = datetime.now()        # 记录该任务开始执行的时间
+                        self._start_time = time.time()                          # 记录该任务开始执行的时间
 
                         if self.taskid:         # 更换订阅和发布通道
                             self.ps.close()
@@ -220,6 +230,31 @@ class SubMessage(object):
     def run_forever(self):
         self.start_thread()
         self.receive()
+
+    # operate_choice = (
+    #     ("ConfigRestart", "配置并重启"),
+    #     ("RestartMining", "重启挖矿"),
+    #     ("PauseMining", "暂停挖矿"),
+    #     ("Shelve", "下架矿机"),
+    #     ("Overclock", "主机超频"),
+    #     ("Restart", "重启矿机"))
+    def process0(self, mac, action, parameter):
+        if action == 'ConfigRestart':       # 配置并重启
+
+            pass
+        elif action == 'RestartMining':     # 重启挖矿
+            pass
+        elif action == 'PauseMining':       # 暂停挖矿
+            pass
+        elif action == 'Shelve':            # 下架矿机
+            pass
+        elif action == 'Overclock':         # 主机超频
+            pass
+        elif action == 'Restart':           # 重启矿机
+            pass
+        else:
+            return False
+        pass
 
     def process(self, mac0, data):
         try:
