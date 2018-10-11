@@ -2,46 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9b5bc13f-e73e-43b2-a8ef-25b3233f4465" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/DELL.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dictionaries/DELL.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/iMiner.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/iMiner.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/preferred-vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/preferred-vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/SmartMiner/smartminer.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/SmartMiner/smartminer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/bminer/bminer.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/bminer/bminer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/btm-miner/btm-miner.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/btm-miner/btm-miner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/btminer-nebutech/btminer-nebutech.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/btminer-nebutech/btminer-nebutech.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/ccminer/ccminer.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/ccminer/ccminer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/claymore-xmr/claymore-xmr.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/claymore-xmr/claymore-xmr.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/claymore-zcash/claymore-zcash.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/claymore-zcash/claymore-zcash.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/claymore/claymore.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/claymore/claymore.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/creepMiner/creepMiner.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/creepMiner/creepMiner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/download_unzip.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/download_unzip.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/ewbf-miner-new/ewbf-miner-new.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/ewbf-miner-new/ewbf-miner-new.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/ewbf-miner/ewbf-miner.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/ewbf-miner/ewbf-miner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/lolminer/lolminer.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/lolminer/lolminer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/lukminer-phi/lukminer-phi.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/lukminer-phi/lukminer-phi.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/sgminer/sgminer.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/sgminer/sgminer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/xdag-gpu/xdag-gpu.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/xdag-gpu/xdag-gpu.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/xmrig-amd/xmrig-amd.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/xmrig-amd/xmrig-amd.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/xmrig-nvidia/xmrig-nvidia.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/xmrig-nvidia/xmrig-nvidia.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/miner-script/z-enemy/z-enemy.py" beforeDir="false" afterPath="$PROJECT_DIR$/miner-script/z-enemy/z-enemy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/monitor-script/auto_mount.py" beforeDir="false" afterPath="$PROJECT_DIR$/monitor-script/auto_mount.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/monitor-script/consumer_save_redis.py" beforeDir="false" afterPath="$PROJECT_DIR$/monitor-script/consumer_save_redis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/monitor-script/monitor_produce_kafka.py" beforeDir="false" afterPath="$PROJECT_DIR$/monitor-script/monitor_produce_kafka.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/notoverlock.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/notoverlock.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/overlock.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/overlock.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/reboot.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/reboot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/remove.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/remove.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/shutdown.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/shutdown.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/start.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/start.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/startinit.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/startinit.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/operate-script/stop.py" beforeDir="false" afterPath="$PROJECT_DIR$/operate-script/stop.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pub_message.py" beforeDir="false" afterPath="$PROJECT_DIR$/pub_message.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/sub_message.py" beforeDir="false" afterPath="$PROJECT_DIR$/sub_message.py" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
@@ -64,12 +24,12 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="415" />
+          <entry key="py" value="451" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="415" />
+          <entry key="Python" value="451" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -89,12 +49,12 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/sub_message.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="120">
-              <caret line="78" column="31" lean-forward="true" selection-start-line="78" selection-start-column="31" selection-end-line="78" selection-end-column="31" />
+            <state relative-caret-position="213">
+              <caret line="82" column="24" lean-forward="true" selection-start-line="82" selection-start-column="24" selection-end-line="82" selection-end-column="24" />
               <folding>
                 <element signature="e#0#14#0" expanded="true" />
                 <element signature="e#9325#12036#0" />
-                <marker date="1539238340093" expanded="true" signature="9526:9544" ph="..." />
+                <marker date="1539241199439" expanded="true" signature="9342:9360" ph="..." />
               </folding>
             </state>
           </provider>
@@ -275,12 +235,12 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/sub_message.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="78" column="31" lean-forward="true" selection-start-line="78" selection-start-column="31" selection-end-line="78" selection-end-column="31" />
+        <state relative-caret-position="213">
+          <caret line="82" column="24" lean-forward="true" selection-start-line="82" selection-start-column="24" selection-end-line="82" selection-end-column="24" />
           <folding>
             <element signature="e#0#14#0" expanded="true" />
             <element signature="e#9325#12036#0" />
-            <marker date="1539238340093" expanded="true" signature="9526:9544" ph="..." />
+            <marker date="1539241199439" expanded="true" signature="9342:9360" ph="..." />
           </folding>
         </state>
       </provider>
