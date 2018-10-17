@@ -1,7 +1,9 @@
 # encoding: utf-8
+# 取消挖矿超频
+
 import subprocess
-import json
 from xml.etree import ElementTree
+
 
 def main():
     p = subprocess.Popen("lspci |grep VGA", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -9,7 +11,8 @@ def main():
     stdout = str(stdout, encoding='utf-8')
     if "AMD" in stdout:
         print("AMD Card")
-        p = subprocess.Popen("/opt/amdcovc-0.3.9.2/amdcovc -a 0-8 fanspeed=default", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p = subprocess.Popen("/opt/amdcovc-0.3.9.2/amdcovc -a 0-8 fanspeed=default", shell=True, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
         stdout, _ = p.communicate()
     elif "NVIDIA" in stdout:
         print("NVIDIA Card")
@@ -35,6 +38,7 @@ def main():
                     stdout, _ = p.communicate()
     else:
         print("None GPU Card")
+
 
 if __name__ == '__main__':
     main()

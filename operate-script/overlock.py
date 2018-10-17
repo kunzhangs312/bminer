@@ -1,18 +1,24 @@
 # encoding: utf-8
-import subprocess
+# 矿机超频
+
 import json
-import sys
 import random
-import redis
+import subprocess
+import sys
 import time
 import uuid
+
+import redis
+
 SYN = None
+
 
 def main():
     def getMac():
         node = uuid.getnode()
         mac = uuid.UUID(int=node).hex[-12:]
         return mac
+
     params_str = """
             {"id":24774,"service_type":"Zcash","status":0,"on":true,"config":{"Version":3,"Overclock":1,"Program":"ewbf-miner","Algorithm":"ethash","Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth","WalletAddress":"t1emzuNbemjqnEhEue74NL3BxsR4cA1ajfP","PoolAddress":"zec-eu1.nanopool.org:6666","PoolName":"uupool.cn","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"Secondary":{"CoinName":"","WalletAddress":"","PoolAddresses":null,"PoolName":"","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"MinerPrefix":"92","MinerPostfix":"92","App":{"Name":"","Version":""}},"overclock_info":{"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,"PowerLimit":118,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,"GPUTargetFanSpeed":77}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}
         """
@@ -40,7 +46,8 @@ def main():
             for fan in fans:
                 Id = fan["Id"]
                 GPUTargetFanSpeed = fan['GPUTargetFanSpeed']
-                p = subprocess.Popen("/opt/amdcovc-0.3.9.2/amdcovc fanspeed:"+str(Id)+"="+GPUTargetFanSpeed, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                p = subprocess.Popen("/opt/amdcovc-0.3.9.2/amdcovc fanspeed:" + str(Id) + "=" + GPUTargetFanSpeed,
+                                     shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 stdout, _ = p.communicate()
             pool = redis.ConnectionPool(host='47.106.253.159', port='6379', db=0,
                                         password='sjdtwigkvsmdsjfkgiw23usfvmkj2')
@@ -77,7 +84,7 @@ def main():
             frequency = cpu['frequency']
             cmd = "echo 'performance' >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            cmd = "echo "+str(frequency)+" >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+            cmd = "echo " + str(frequency) + " >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             cmd = "echo 'powersave' >/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
             p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -90,12 +97,14 @@ def main():
                 GPUGraphicsClockOffset = gpu['GPUGraphicsClockOffset']  # GPU频率
                 GPUMemoryTransferRateOffset = gpu['GPUMemoryTransferRateOffset']  # 现存频率
                 GPUTargetFanSpeed = gpu['GPUTargetFanSpeed']  # 风扇转速
-                cmd0 = "nvidia-smi -i " + str(Id) +" -pl "+str(PowerLimit)
-                cmd1 = "nvidia-settings -a [gpu:"+str(Id)+"]/GPUPowerMizerMode=1 " \
-                       + "-a [gpu:"+str(Id)+"]/GPUFanControlState=1 " \
-                       + "-a [fan:"+str(Id)+"]/GPUTargetFanSpeed="+str(GPUTargetFanSpeed) \
-                       +" -a [gpu:"+str(Id)+"]/GPUGraphicsClockOffset["+str(Level)+"]="+str(GPUGraphicsClockOffset) \
-                       + " -a [gpu:"+str(Id)+"]/GPUMemoryTransferRateOffset["+str(Level)+"]="+str(GPUMemoryTransferRateOffset)
+                cmd0 = "nvidia-smi -i " + str(Id) + " -pl " + str(PowerLimit)
+                cmd1 = "nvidia-settings -a [gpu:" + str(Id) + "]/GPUPowerMizerMode=1 " \
+                       + "-a [gpu:" + str(Id) + "]/GPUFanControlState=1 " \
+                       + "-a [fan:" + str(Id) + "]/GPUTargetFanSpeed=" + str(GPUTargetFanSpeed) \
+                       + " -a [gpu:" + str(Id) + "]/GPUGraphicsClockOffset[" + str(Level) + "]=" + str(
+                    GPUGraphicsClockOffset) \
+                       + " -a [gpu:" + str(Id) + "]/GPUMemoryTransferRateOffset[" + str(Level) + "]=" + str(
+                    GPUMemoryTransferRateOffset)
                 p = subprocess.Popen(cmd0, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 p = subprocess.Popen(cmd1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 stdout, _ = p.communicate()
@@ -125,6 +134,7 @@ def main():
                     time.sleep(1)
     else:
         print("None GPU Card")
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
