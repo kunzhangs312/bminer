@@ -1,5 +1,6 @@
 import pika
 import json
+import demjson
 import uuid
 import time
 import os
@@ -26,7 +27,7 @@ CONFIG = {
     'TRACE_ENABLE': True
 }
 
-MAC = uuid.UUID(int=uuid.getnode()).hex[-12:]
+MAC = 'e0d55e69c514' or uuid.UUID(int=uuid.getnode()).hex[-12:]
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 
@@ -172,7 +173,7 @@ class TaskReceiver(Thread, RabbitMQServer):
         debug_helper('TaskReceiver running ...')
 
         # 生成队列，并绑定到交换机上
-        read_queue = 'CHANNEL' + MAC.upper()
+        read_queue = 'MechineReadQueue' + MAC.upper()
 
         while True:
             if self.reconnect():
@@ -317,6 +318,8 @@ class TaskHandler(Thread, RabbitMQServer):
             try:
                 task_data = self.queue.get()
 
+                debug_helper("Handle Task: " + task_data)
+
                 OPERATE_STATUS_LOCK.acquire()
                 OPERATE_STATUS = 'ACCEPT'  # 标记已经接收新的任务，不能再接收，但是可以记录接收的任务，不执行
                 OPERATE_STATUS_LOCK.release()
@@ -329,7 +332,8 @@ class TaskHandler(Thread, RabbitMQServer):
                 parameter = task_data['parameter']      # json字符串，服务器将该参数值JSON序列化后赋值给parameter字段
                 action = task_data['action']
 
-                parameter = json.loads(parameter)       # 将json字符串反序列化
+                # parameter = json.loads(parameter)       # 将json字符串反序列化
+                parameter = demjson.decode(parameter)
 
                 # 声明一个队列，用于给RabbitMQ发送接收任务的应答消息
                 write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
@@ -470,7 +474,7 @@ class TaskHandler(Thread, RabbitMQServer):
                 OPERATE_STATUS = None               # 标记任务已完成，可以接收新的任务
                 OPERATE_STATUS_LOCK.release()
             except Exception as err:
-                debug_helper(err)
+                debug_helper(str(err) + ": " + "task handler occur fatal error!")
 
 
 def system_boot():
