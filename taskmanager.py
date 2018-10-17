@@ -14,9 +14,9 @@ from peewee import Model, SqliteDatabase, CharField, IntegerField, \
 
 CONFIG = {
     'RABBITMQ': {
-        'ACCOUNT': 'guest',
-        'PASSWORD': 'guest',
-        'URL': 'localhost',
+        'ACCOUNT': 'machine',
+        'PASSWORD': '161e85c737a844cd',
+        'URL': '192.168.0.64',
         'PORT': 5672
     },
     'READ_SWITCH': 'BrokerSendSwitch',

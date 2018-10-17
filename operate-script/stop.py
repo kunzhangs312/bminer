@@ -6,7 +6,7 @@ import time
 import uuid
 
 
-MINER_SCRIPT_PATH = './miner-script'
+MINER_SCRIPT_PATH = '../miner-script'
 
 
 def get_mineprogram():
