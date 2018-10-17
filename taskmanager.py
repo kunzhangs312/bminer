@@ -26,7 +26,7 @@ CONFIG = {
     'TRACE_ENABLE': True
 }
 
-MAC = 'fdsafdas' or uuid.UUID(int=uuid.getnode()).hex[-12:]
+MAC = uuid.UUID(int=uuid.getnode()).hex[-12:]
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 
@@ -501,7 +501,7 @@ def system_boot():
 
         connection.close()
     else:
-        mine_info = MineInfo.select().order_by(Operation.finish_time.desc()).limit(1)
+        mine_info = MineInfo.select().order_by(MineInfo.create_time.desc()).limit(1)
         try:
             mine_info = MineInfo.get_or_none(id=mine_info[0])
             if mine_info.mine_status == 'mining':
