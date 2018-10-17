@@ -1,6 +1,6 @@
 import pika
 import json
-import demjson
+# import demjson
 import uuid
 import time
 import os
@@ -333,8 +333,8 @@ class TaskHandler(Thread, RabbitMQServer):
                 parameter = task_data['parameter']      # json字符串，服务器将该参数值JSON序列化后赋值给parameter字段
                 action = task_data['action']
 
-                # parameter = json.loads(parameter)       # 将json字符串反序列化
-                parameter = demjson.decode(parameter)
+                parameter = json.loads(parameter)       # 将json字符串反序列化
+                # parameter = demjson.decode(parameter)
 
                 # 声明一个队列，用于给RabbitMQ发送接收任务的应答消息
                 write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()

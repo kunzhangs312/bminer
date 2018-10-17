@@ -23,8 +23,8 @@ def main():
     # "GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}"""
     params_str = sys.argv[1]
     # 1.解析参数
-    # params = json.loads(params_str)
-    params = demjson.decode(params_str)
+    params = json.loads(params_str)
+    # params = demjson.decode(params_str)
     program = params["config"]["Program"]
     shell_name = program + ".sh"
 
