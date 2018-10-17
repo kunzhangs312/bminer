@@ -406,8 +406,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 根据配置启动挖矿程序及超频
                     trace_helper('start mine according to config')
 
-                    json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py " + json_params
+                    # json_params = json.dumps(parameter['params'])
+                    cmd = "python3 ./operate-script/start.py"
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     stdout, _ = p.communicate()
                     json_result = stdout.decode('utf-8')
@@ -441,8 +441,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 根据配置启动挖矿程序及超频
                     trace_helper('start mine according to config')
 
-                    json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py " + json_params
+                    # json_params = json.dumps(parameter['params'])
+                    cmd = "python3 ./operate-script/start.py "
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     stdout, _ = p.communicate()
                     json_result = stdout.decode('utf-8')
@@ -470,12 +470,12 @@ class TaskHandler(Thread, RabbitMQServer):
                     pass
                 else:
                     debug_helper('Unknown operation')
-
-                OPERATE_STATUS_LOCK.acquire()
-                OPERATE_STATUS = None               # 标记任务已完成，可以接收新的任务
-                OPERATE_STATUS_LOCK.release()
             except Exception as err:
                 debug_helper(str(err) + ": " + "task handler occur fatal error!")
+            finally:
+                OPERATE_STATUS_LOCK.acquire()
+                OPERATE_STATUS = None  # 标记任务已完成，可以接收新的任务
+                OPERATE_STATUS_LOCK.release()
 
 
 def system_boot():
@@ -527,8 +527,8 @@ def system_boot():
                 # 根据配置启动挖矿程序及超频
                 trace_helper('start mine according to config')
 
-                json_params = json.dumps(parameter['params'])
-                cmd = "python3 ./operate-script/start.py " + json_params
+                # json_params = json.dumps(parameter['params'])
+                cmd = "python3 ./operate-script/start.py"
                 p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 stdout, _ = p.communicate()
                 json_result = stdout.decode('utf-8')

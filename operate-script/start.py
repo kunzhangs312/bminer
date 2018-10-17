@@ -2,10 +2,9 @@
 import json
 import os
 import subprocess
-import sys
 import time
-import uuid
-import demjson
+
+MINE_CONF_PATH = '../mine.conf'
 
 
 def main():
@@ -21,67 +20,49 @@ def main():
     # {"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,
     # "PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,
     # "GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}"""
-    params_str = sys.argv[1]
-    # 1.解析参数
-    params = json.loads(params_str)
-    # params = demjson.decode(params_str)
-    program = params["config"]["Program"]
-    shell_name = program + ".sh"
+    try:
+        with open(MINE_CONF_PATH, 'r', encoding='utf-8') as fr:
+            parameter = fr.read()
 
-    # 2.写入shell脚本
-    file = os.path.isfile("./" + shell_name)
-    if not file:
-        os.mknod(shell_name)
-        os.chmod(shell_name, 755)
-    else:
-        fp = open(shell_name, "w")
-        fp.truncate()
-    with open(shell_name, "r+") as f:
-        f.write("# !/bin/sh \n")
-        f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/" + program + ".py " + params_str + " \n")
-    f.close()
+        parameter = json.loads(parameter)
+        params_str = json.dumps(parameter['params'])
+        # 1.解析参数
+        params = json.loads(params_str)
+        program = params["config"]["Program"]
+        shell_name = program + ".sh"
 
-    # 3.吊起shell脚本执行
-    subprocess.Popen("sh ./" + shell_name, shell=True, stdout=subprocess.PIPE)
+        # 2.写入shell脚本
+        file = os.path.isfile("./" + shell_name)
+        if not file:
+            os.mknod(shell_name)
+            os.chmod(shell_name, 755)
+        else:
+            fp = open(shell_name, "w")
+            fp.truncate()
+        with open(shell_name, "r+") as f:
+            f.write("# !/bin/sh \n")
+            f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/" + program + ".py " + params_str + " \n")
 
-    # 4.检查执行是否起来
-    time.sleep(3)
-    lines = os.popen('ps -ef|grep ' + program)
-    lines = lines.readlines()
-    # status = "异常"
-    if len(lines) > 2:
-        # status = "正常"
-        res = {"finish_status": "success", "failed_reason": ""}
-        print(json.dumps(res))
-    else:
-        res = {"finish_status": "failed", "failed_reason": "can't start mine program"}
-        print(json.dumps(res))
+        # 3.吊起shell脚本执行
+        subprocess.Popen("sh ./" + shell_name, shell=True, stdout=subprocess.PIPE)
 
-    # 5.上报操作数据
-    # def getMac():
-    #     node = uuid.getnode()
-    #     mac = uuid.UUID(int=node).hex[-12:]
-    #     return mac
-    #
-    # try:
-    #     mac = getMac()
-    #     userid = sys.argv[2]
-    #     id = sys.argv[3]
-    #     str_ = {"id": id, "userid": userid, "operator_type": "start",
-    #             "status": status, "mac": mac, "time": time.time(),
-    #             "program": program, "operate_name": "start"}
-    #     json_info = json.dumps(str_)
-    #     print(json_info)
-    # except Exception as e:
-    #     print(e)
+        # 4.检查执行是否起来
+        time.sleep(3)
+        lines = os.popen('ps -ef|grep ' + program)
+        lines = lines.readlines()
+        if len(lines) > 2:
+            result = {"finish_status": "success", "failed_reason": ""}
+            print(json.dumps(result))
+        else:
+            result = {"finish_status": "failed", "failed_reason": "can't start mine program"}
+            print(json.dumps(result))
+    except Exception as err:
+        result = {"finish_status": "failed", "failed_reason": "can't read config from file"}
+        print(json.dumps(result))
 
 
 if __name__ == '__main__':
     """
     根据配置参数启动挖矿，并返回启动结果，返回格式如下：{"finish_status": "success", "failed_reason": ""}
     """
-    if len(sys.argv) < 2:
-        result = {"finish_status": "failed", "failed_reason": "please input the params name"}
-        print(json.dumps(result))
-    else:
-        main()
+    main()
