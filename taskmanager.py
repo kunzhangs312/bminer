@@ -229,7 +229,7 @@ def create_or_update_mine_info(parameter, mine_status):
         miner_postfix = parameter.get('params', None).get('config', None) \
             .get('MinerPostfix', None)
 
-    mine_info = MineInfo.select().order_by(Operation.finish_time.desc()).limit(1)
+    mine_info = MineInfo.select().order_by(MineInfo.create_time.desc()).limit(1)
     try:
         mine_info = MineInfo.get_or_none(id=mine_info[0])
         if parameter is not None:
