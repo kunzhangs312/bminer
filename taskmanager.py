@@ -24,10 +24,11 @@ CONFIG = {
     'WRITE_QUEUE': 'BrokerReadQueue',
 
     'CONFIG_NAME': 'mine.conf',
-    'TRACE_ENABLE': True
+    'TRACE_ENABLE': True,
+    'DEV_ENV': False,
 }
 
-MAC = 'e0d55e69c514' or uuid.UUID(int=uuid.getnode()).hex[-12:]
+MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex[-12:]
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 
