@@ -32,6 +32,7 @@ MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 PWD = os.getcwd()
+OPERATE_SCRIPT_PWD = PWD + '/operate-script'
 
 def trace_helper(logstr):
     if CONFIG['TRACE_ENABLE']:
@@ -378,7 +379,7 @@ class TaskHandler(Thread, RabbitMQServer):
                 elif action == 'PauseMining':       # 暂停挖矿，与下架一样，直接停止所有的挖矿软件
                     debug_helper("execute pause mining task")
 
-                    cmd = "python3 ./operate-script/stop.py"
+                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     # stdout, _ = p.communicate()
                     # out = stdout.decode('utf-8')
@@ -412,7 +413,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     trace_helper('stop all mine and overclock')
-                    cmd = "python3 ./operate-script/stop.py"
+                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
@@ -449,7 +450,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     trace_helper('stop all mine and overclock')
-                    cmd = "python3 ./operate-script/stop.py"
+                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
@@ -555,7 +556,7 @@ def system_boot():
 
                 # 关闭所有的挖矿程序及超频，默认执行成功
                 trace_helper('stop all mine and overclock')
-                cmd = "python3 ./operate-script/stop.py"
+                cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                 subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                 # 根据配置启动挖矿程序及超频
