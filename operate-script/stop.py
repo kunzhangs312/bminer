@@ -88,8 +88,6 @@ def stop_mineprogram():
 
 
 if __name__ == '__main__':
-    global MINE_SCRIPT_PATH
-    
     if len(sys.argv) == 2:      # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_SCRIPT_PATH = sys.argv[1]
     

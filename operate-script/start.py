@@ -110,8 +110,6 @@ if __name__ == '__main__':
     根据配置参数启动挖矿，并返回启动结果，返回格式如下：{"finish_status": "success", "failed_reason": ""}
     通过startmanger.py调用该脚本是需要传入挖矿配置的文件目录路径
     """
-    global MINE_CONF_PATH
-
     if len(sys.argv) == 2:  # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_CONF_PATH = sys.argv[1] + '/' + MINE_CONF_NAME
 
