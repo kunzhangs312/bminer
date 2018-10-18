@@ -31,7 +31,7 @@ CONFIG = {
 MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex[-12:]
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
-
+PWD = os.getcwd()
 
 def trace_helper(logstr):
     if CONFIG['TRACE_ENABLE']:
@@ -419,7 +419,7 @@ class TaskHandler(Thread, RabbitMQServer):
                     trace_helper('start mine according to config')
 
                     # json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py"
+                    cmd = "python3 ./operate-script/start.py " + PWD
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     stdout, _ = p.communicate()
                     json_result = stdout.decode('utf-8')
@@ -456,7 +456,7 @@ class TaskHandler(Thread, RabbitMQServer):
                     trace_helper('start mine according to config')
 
                     # json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py "
+                    cmd = "python3 ./operate-script/start.py " + PWD
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     stdout, _ = p.communicate()
                     json_result = stdout.decode('utf-8')
@@ -562,7 +562,7 @@ def system_boot():
                 trace_helper('start mine according to config')
 
                 # json_params = json.dumps(parameter['params'])
-                cmd = "python3 ./operate-script/start.py"
+                cmd = "python3 ./operate-script/start.py " + PWD
                 p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 stdout, _ = p.communicate()
                 json_result = stdout.decode('utf-8')
