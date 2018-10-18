@@ -319,6 +319,8 @@ class TaskHandler(Thread, RabbitMQServer):
             try:
                 task_data = self.queue.get()
 
+                feedback_stage = None
+
                 debug_helper("Handle Task: " + task_data)
 
                 OPERATE_STATUS_LOCK.acquire()
@@ -345,6 +347,8 @@ class TaskHandler(Thread, RabbitMQServer):
                 debug_helper('confirm response: ' + json.dumps(resp_info))
                 self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
 
+                feedback_stage = 'confirm'      # 更新反馈阶段变量
+
                 # 执行矿机命令
                 if action == 'Shutdown':            # 关机
                     debug_helper("execute shutdown task")
@@ -352,6 +356,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 在关机之前更新数据库及上报执行结果，默认关机操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue, finish_status='success',
                                          status='finished', failed_reason='')
+
+                    feedback_stage = 'completed'    # 更新反馈阶段变量
                     os.system("shutdown -h now")
                 elif action == 'Shelve':            # 下架，直接停止所有的挖矿软件
                     debug_helper("execute shelve task")
@@ -364,6 +370,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     self.update_feedback(taskid, userid, action, write_queue,
                                          finish_status='success', status='finished',
                                          failed_reason='')
+
+                    feedback_stage = 'completed'    # 更新反馈阶段变量
 
                     # 更新本地的挖矿信息数据库
                     create_or_update_mine_info(parameter=None, mine_status="unmining")
@@ -378,6 +386,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     self.update_feedback(taskid, userid, action, write_queue,
                                          finish_status='success', status='finished',
                                          failed_reason='')
+
+                    feedback_stage = 'completed'  # 更新反馈阶段变量
 
                     # 更新本地的挖矿信息数据库
                     create_or_update_mine_info(parameter=None, mine_status="unmining")
@@ -394,6 +404,8 @@ class TaskHandler(Thread, RabbitMQServer):
                         self.update_feedback(taskid, userid, action, write_queue,
                                              finish_status='failed', status='finished',
                                              failed_reason='No config file')
+
+                        feedback_stage = 'completed'  # 更新反馈阶段变量
                         continue
 
                     parameter = json.loads(parameter)
@@ -421,6 +433,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     self.update_feedback(taskid, userid, action, write_queue,
                                          finish_status=finish_status, status='finished',
                                          failed_reason=failed_reason)
+
+                    feedback_stage = 'completed'  # 更新反馈阶段变量
 
                     # 更新本地的挖矿信息数据库
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
@@ -457,6 +471,8 @@ class TaskHandler(Thread, RabbitMQServer):
                                          finish_status=finish_status, status='finished',
                                          failed_reason=failed_reason)
 
+                    feedback_stage = 'completed'  # 更新反馈阶段变量
+
                     # 更新本地的挖矿信息数据库
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
                     create_or_update_mine_info(parameter, mine_status=mine_status)
@@ -465,6 +481,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 在重启之前更新数据库及上报执行结果，默认关机操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue, finish_status='success',
                                          status='reboot', failed_reason='')
+
+                    feedback_stage = 'completed'  # 更新反馈阶段变量
                     os.system("reboot -h now")
                 elif action == 'Overclock':         # 主机超频
                     pass
@@ -472,6 +490,22 @@ class TaskHandler(Thread, RabbitMQServer):
                     debug_helper('Unknown operation')
             except Exception as err:
                 debug_helper(str(err) + ": " + "task handler occur fatal error!")
+                if feedback_stage is None:
+                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                 'maclist': [MAC], 'resp_type': 'confirm',
+                                 'result': self.filling_result(is_random=True)}
+                    debug_helper('confirm response: ' + json.dumps(resp_info))
+                    self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+
+                    self.update_feedback(taskid, userid, action, write_queue,
+                                         finish_status='failed', status='finished',
+                                         failed_reason=str(err))
+                elif feedback_stage == 'confirm':
+                    self.update_feedback(taskid, userid, action, write_queue,
+                                         finish_status='failed', status='finished',
+                                         failed_reason=str(err))
+                elif feedback_stage == 'completed':
+                    pass
             finally:
                 OPERATE_STATUS_LOCK.acquire()
                 OPERATE_STATUS = None  # 标记任务已完成，可以接收新的任务

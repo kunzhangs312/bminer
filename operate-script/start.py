@@ -3,11 +3,12 @@ import json
 import os
 import subprocess
 import time
+import sys
 
-MINE_CONF_PATH = '../mine.conf'
+MINE_CONF_NAME = 'mine.conf'
 
 
-def main():
+def main(conf_path):
     # params_str = """{"id":24774,"service_type":"Zcash","status":0,"on":true,
     # "config":{"Version":3,"Overclock":1,"Program":"xmrig-amd","Algorithm":"ethash",
     # "Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth",
@@ -20,8 +21,9 @@ def main():
     # {"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,
     # "PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,
     # "GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}"""
+    mine_conf_path = conf_path + '/' + MINE_CONF_NAME
     try:
-        with open(MINE_CONF_PATH, 'r', encoding='utf-8') as fr:
+        with open(mine_conf_path, 'r', encoding='utf-8') as fr:
             parameter = fr.read()
 
         parameter = json.loads(parameter)
@@ -64,5 +66,11 @@ def main():
 if __name__ == '__main__':
     """
     根据配置参数启动挖矿，并返回启动结果，返回格式如下：{"finish_status": "success", "failed_reason": ""}
+    调用该脚本是需要传入挖矿配置的文件目录路径
     """
-    main()
+    if len(sys.argv) != 2:
+        result = {"finish_status": "failed", "failed_reason": "the number of start script parameters is not equal to 2"}
+        print(json.dumps(result))
+    else:
+        conf_path = sys.argv[1]
+        main(conf_path)
