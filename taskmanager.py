@@ -366,13 +366,9 @@ class TaskHandler(Thread, RabbitMQServer):
                                                    failed_reason=failed_reason)}
         log.info('completed response: ' + json.dumps(resp_info))
 
-        if self.connection.is_open:
-            try:
-                self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-            except Exception as err:
-                log.error("Error while sending data to queue:\n%s" % err)
-                return
-        else:
+        try:
+            self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+        except Exception:
             self.connect()
             self.channel.queue_declare(queue=write_queue, auto_delete=True)
             try:
@@ -392,8 +388,7 @@ class TaskHandler(Thread, RabbitMQServer):
                 task_data = self.queue.get()
 
                 # 判断RabbitMQ连接是否打开
-                if not self.connection.is_open:
-                    self.connect()
+                self.connect()
 
                 feedback_stage = None
 
@@ -417,31 +412,17 @@ class TaskHandler(Thread, RabbitMQServer):
                 # 声明一个队列，用于给RabbitMQ发送接收任务的应答消息
                 write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
 
-                if self.connection.is_open:
-                    self.channel.queue_declare(queue=write_queue, auto_delete=True)
-                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                                 'maclist': [MAC], 'resp_type': 'confirm',
-                                 'result': self.filling_result(is_random=True)}
-                    log.info('confirm response: ' + json.dumps(resp_info))
-                    try:
-                        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-                        feedback_stage = 'confirm'  # 更新反馈阶段变量
-                    except Exception as err:
-                        log.error("Error while sending data to queue:\n%s" % err)
-                        continue
-                else:
-                    self.connect()
-                    self.channel.queue_declare(queue=write_queue, auto_delete=True)
-                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                                 'maclist': [MAC], 'resp_type': 'confirm',
-                                 'result': self.filling_result(is_random=True)}
-                    log.info('confirm response: ' + json.dumps(resp_info))
-                    try:
-                        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-                        feedback_stage = 'confirm'  # 更新反馈阶段变量
-                    except Exception as err:
-                        log.error("Error while sending data to queue:\n%s" % err)
-                        continue
+                self.channel.queue_declare(queue=write_queue, auto_delete=True)
+                resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                             'maclist': [MAC], 'resp_type': 'confirm',
+                             'result': self.filling_result(is_random=True)}
+                log.info('confirm response: ' + json.dumps(resp_info))
+                try:
+                    self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                    feedback_stage = 'confirm'  # 更新反馈阶段变量
+                except Exception as err:
+                    log.error("Error while sending data to queue:\n%s" % err)
+                    continue
 
                 # 执行矿机命令
                 if action == 'Shutdown':            # 关机
@@ -589,37 +570,20 @@ class TaskHandler(Thread, RabbitMQServer):
                 write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
 
                 if feedback_stage is None:
-                    if self.connection.is_open:
-                        self.channel.queue_declare(queue=write_queue, auto_delete=True)
+                    self.channel.queue_declare(queue=write_queue, auto_delete=True)
 
-                        resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                                     'maclist': [MAC], 'resp_type': 'confirm',
-                                     'result': self.filling_result(is_random=True)}
-                        log.info('confirm response: ' + json.dumps(resp_info))
-                        try:
-                            self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-                            self.update_feedback(taskid, userid, action, write_queue,
-                                                 finish_status='failed', status='finished',
-                                                 failed_reason=str(err))
-                        except Exception as err:
-                            log.error("Error while sending data to queue:\n%s" % err)
-                            continue
-                    else:
-                        self.connect()
-                        self.channel.queue_declare(queue=write_queue, auto_delete=True)
-
-                        resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                                     'maclist': [MAC], 'resp_type': 'confirm',
-                                     'result': self.filling_result(is_random=True)}
-                        log.info('confirm response: ' + json.dumps(resp_info))
-                        try:
-                            self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-                            self.update_feedback(taskid, userid, action, write_queue,
-                                                 finish_status='failed', status='finished',
-                                                 failed_reason=str(err))
-                        except Exception as err:
-                            log.error("Error while sending data to queue:\n%s" % err)
-                            continue
+                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                 'maclist': [MAC], 'resp_type': 'confirm',
+                                 'result': self.filling_result(is_random=True)}
+                    log.info('confirm response: ' + json.dumps(resp_info))
+                    try:
+                        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                        self.update_feedback(taskid, userid, action, write_queue,
+                                             finish_status='failed', status='finished',
+                                             failed_reason=str(err))
+                    except Exception as err:
+                        log.error("Error while sending data to queue:\n%s" % err)
+                        continue
                 elif feedback_stage == 'confirm':
                     self.update_feedback(taskid, userid, action, write_queue,
                                          finish_status='failed', status='finished',
