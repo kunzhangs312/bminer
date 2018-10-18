@@ -63,6 +63,8 @@ def stop_mineprogram():
     """
     关闭所有的挖矿程序
     """
+    log.info("=" * 60 + "New Stop" + "="*60)
+    log.info("stop all mine program ...")
     try:
         mine_program = get_mineprogram()
         if not mine_program:
@@ -81,10 +83,12 @@ def stop_mineprogram():
                         continue
                     vars = line.split()
                     pid = vars[1]           # get pid
-                    log.debug("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
+                    log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)
     except Exception as err:
         log.error(err)
+
+    log.info("=" * 128)
 
 
 if __name__ == '__main__':

@@ -62,9 +62,13 @@ def start_mine():
     # {"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,
     # "PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,
     # "GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}"""
+    log.info("=" * 60 + "New Start" + "=" * 60)
+    log.info("start mine program ...")
     try:
         with open(MINE_CONF_PATH, 'r', encoding='utf-8') as fr:
             parameter = fr.read()
+
+        log.info(parameter)
 
         parameter = json.loads(parameter)
         params_str = json.dumps(parameter['params'])
@@ -103,6 +107,8 @@ def start_mine():
         result = {"finish_status": "failed", "failed_reason": "can't read config from file"}
         print(json.dumps(result))
         log.error(err)
+
+    log.info("=" * 129)
 
 
 if __name__ == '__main__':
