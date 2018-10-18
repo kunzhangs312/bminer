@@ -9,6 +9,7 @@ import logging.handlers
 
 MINE_BIN_PATH = "/opt/miner/bin"
 MINE_SCRIPT_PATH = '../miner-script'
+MINE_BIN2_PATH = "/opt/miner/iMiner/miner-script"
 
 
 def create_logger(file_name='stop.log', file_handler_level=logging.DEBUG, stream_handler_level=logging.INFO):
@@ -75,12 +76,16 @@ def stop_mineprogram():
         for program in mine_program:
             lines = os.popen('ps -ef|grep ' + program)
             lines = lines.readlines()
-            # if len(lines) <= 3:
-            #     continue
 
             for line in lines:
                 find_str = MINE_BIN_PATH + '/' + program + '/' + program
                 if line.find(find_str) != -1:
+                    pid = line.split()[1]
+                    log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
+                    os.system('kill ' + pid)
+
+                find2_str = MINE_BIN2_PATH + '/' + program + '/' + program + '.py'
+                if line.find(find2_str) != -1:
                     pid = line.split()[1]
                     log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)

@@ -9,6 +9,8 @@ import threading
 import os
 import requests
 
+PARAM = ""
+
 class Miner(threading.Thread):
     miner = None
     cmd = None
@@ -48,35 +50,39 @@ class Miner(threading.Thread):
                 print("miner stoped")
                 self.miner.kill()
                 return
-            poller.poll(60000)
+            time.sleep(60)
             self.get_miner_data()
     def stop(self):
         self.is_break = True
 
     def get_miner_data(self):
-        url = "http://127.0.0.1:3339"
-        res = requests.get(url)
-        data = json.loads(res.text)
-        program_name = "xmrig-nvidia"
-        coin = "XMR"
-        ret = []
-        speed = data['results']['hashes_total'] +" Bhash/s"
-        i = 0
-        for item in data.get('health', []):
-            gpu_power_usage = item['power']
-            info = item['name']
-            temperature = item['temp']
-            id = i
-            i += 1
-            res = {"id": id, "info": info, "hash": hash, "temperature": temperature, "gpu_power_usage": gpu_power_usage}
-            ret.append(res)
-        str_ = {"mac": self.mac, "time": time.time(), "speed": speed, "program_name": program_name, "coin": coin,
-                "devices": ret}
-        json_info = json.dumps(str_)
-        if self.producer is None:
-            self.producer = self.getProducer()
-        self.producer.produce(bytes(json_info, encoding="utf8"))
-        print(json_info)
+        try:
+            url = "http://127.0.0.1:3339"
+            res = requests.get(url)
+            data = json.loads(res.text)
+            program_name = "xmrig-nvidia"
+            coin = "XMR"
+            ret = []
+            speed = str(data['hashrate']['highest']) +" Bhash/s"
+            i = 0
+            for item in data.get('health', []):
+                gpu_power_usage = item['power']
+                info = item['name']
+                temperature = item['temp']
+                id = i
+                i += 1
+                fan = item['fan']
+                res = {"id": id, "info": info, "fan": fan, "temperature": temperature, "gpu_power_usage": gpu_power_usage}
+                ret.append(res)
+            str_ = {"mac": self.mac, "time": time.time(), "speed": speed, "program_name": program_name, "coin": coin,"devices": ret}
+            json_info = json.dumps(str_)
+            print(json_info)
+            if self.producer is None:
+                self.producer = self.getProducer()
+            self.producer.produce(bytes(json_info, encoding="utf8"))
+            print(json_info)
+        except Exception as e:
+            print(e)
 
     def getProducer(self):
         client = KafkaClient(hosts="47.106.253.159:9092")
@@ -91,7 +97,7 @@ def get_miner_config():
     str = """
         {"id":24774,"service_type":"Zcash","status":0,"on":true,"config":{"Version":3,"Overclock":1,"Program":"ewbf-miner","Algorithm":"ethash","Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth","WalletAddress":"48LHRj3T9Jfeq87sikft1ijRzuGjo5w21ALP5gnvPeTkdqGgh2qQo7LXwKpuFDnoEUWhyHZrWsiuxVqHkAikyAuo1t9y5zE","PoolAddress":"xmr.f2pool.com:13531","PoolName":"uupool.cn","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"Secondary":{"CoinName":"","WalletAddress":"","PoolAddresses":null,"PoolName":"","Algorithm":"","IsUserAddr":false,"CurrentPoolAddr":"","CurrentPoolPort":0,"Status":0},"MinerPrefix":"92","MinerPostfix":"92","App":{"Name":"","Version":""}},"overclock_info":{"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,"PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,"GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}
     """
-    json_conf = json.loads(str)
+    json_conf = json.loads(PARAM)
     json_conf["config"]["Worker"] = "jianhuaixie"
     return json_conf["config"]
 
@@ -123,6 +129,9 @@ def main():
     miner.join()
 
 if __name__ == '__main__':
-    main()
-
-
+    import sys
+    if(len(sys.argv)<2):
+        print("please input the params")
+    else:
+        PARAM = sys.argv[1]
+        main()
