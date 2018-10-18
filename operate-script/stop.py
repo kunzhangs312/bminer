@@ -7,6 +7,7 @@ import uuid
 import logging
 import logging.handlers
 
+MINE_BIN_PATH = "/opt/miner/bin/"
 MINE_SCRIPT_PATH = '../miner-script'
 
 
@@ -74,17 +75,16 @@ def stop_mineprogram():
         for program in mine_program:
             lines = os.popen('ps -ef|grep ' + program)
             lines = lines.readlines()
-            if len(lines) <= 3:
-                continue
+            # if len(lines) <= 3:
+            #     continue
 
             for line in lines:
-                if "python3 stop.py" not in line:
-                    if line.find("grep " + program) != -1:
-                        continue
-                    vars = line.split()
-                    pid = vars[1]           # get pid
+                find_str = MINE_BIN_PATH + '/' + program + '/' + program
+                if line.find(find_str) != -1:
+                    pid = line.split()[1]
                     log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)
+                    
     except Exception as err:
         log.error(err)
 
