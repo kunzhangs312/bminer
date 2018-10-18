@@ -84,8 +84,8 @@ def start_mine():
             os.mknod(shell_name)
             os.chmod(shell_name, 755)
         else:
-            fp = open(shell_name, "w")
-            fp.truncate()
+            with open(shell_name, "w") as fp:
+                fp.truncate()
         with open(shell_name, "r+") as f:
             f.write("# !/bin/sh \n")
             f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/" + program + ".py " + params_str + " \n")

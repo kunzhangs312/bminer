@@ -7,7 +7,7 @@ import uuid
 import logging
 import logging.handlers
 
-MINE_BIN_PATH = "/opt/miner/bin/"
+MINE_BIN_PATH = "/opt/miner/bin"
 MINE_SCRIPT_PATH = '../miner-script'
 
 
@@ -84,7 +84,7 @@ def stop_mineprogram():
                     pid = line.split()[1]
                     log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)
-                    
+
     except Exception as err:
         log.error(err)
 

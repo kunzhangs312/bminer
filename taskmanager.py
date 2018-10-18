@@ -1,10 +1,13 @@
 import pika
+import pika.exceptions
 import json
 # import demjson
 import uuid
 import time
 import os
 import subprocess
+import logging
+import logging.handlers
 
 from queue import Queue
 from threading import Thread, Lock
@@ -32,19 +35,48 @@ MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 PWD = os.getcwd()
-OPERATE_SCRIPT_PWD = PWD + '/operate-script'
-
-def trace_helper(logstr):
-    if CONFIG['TRACE_ENABLE']:
-        print("[TRACE] [{time}] {logstr}".format(time=datetime.now().strftime('%m/%d %H:%M:%S.%s'), logstr=logstr))
+OPERATE_SCRIPT_DIRNAME = 'operate-script'
+OPERATE_SCRIPT_PWD = PWD + '/' + OPERATE_SCRIPT_DIRNAME
 
 
-def debug_helper(logstr):
-    print("[INFO] [{time}] {logstr}".format(time=datetime.now().strftime('%m/%d %H:%M:%S.%s'), logstr=logstr))
+def create_logger(file_name='taskmanager.log', file_handler_level=logging.WARNING, stream_handler_level=logging.DEBUG):
+    """
+    创建一个logging对象，并将日志按照特定Log等级输出到特定日志文件和控制台。
+    :param file_name: 日志文件的名称，默认为log.txt
+    :param file_handler_level: 将特定等级的日志写入到文件中
+    :param stream_handler_level: 将特定等级的日志输出到控制台
+    :return: logging对象
+    """
+    logger = logging.getLogger(file_name)
+    # 这里进行判断，如果logger.handlers列表为空，则添加，否则，直接去写日志
+    # 这样做可以避免不同文件中都调用该函数时都添加addHandler，造成重复输出的问题。
+    if not logger.handlers:
+        logger.setLevel(logging.INFO)       # Log等级总开关
+        # 定义handle的输出格式
+        formatter = logging.Formatter("%(asctime)s [%(filename)s-%(lineno)d: %(funcName)s]"
+                                      " %(levelname)s: %(message)s")
+        fh = logging.handlers.TimedRotatingFileHandler(file_name, 'D', 1, 10, 'UTF-8')
+        fh.setLevel(file_handler_level)   # 设置输出到日志文件的Log等级
+
+        # 创建一个handler，用于输出到控制台
+        ch = logging.StreamHandler()
+        ch.setLevel(stream_handler_level)
+
+        # 定义handler的输出格式
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+
+        # 将logger添加到handler中
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+
+    return logger
 
 
 # 建立Sqlite数据库连接
 SQDB = SqliteDatabase('operation.db')
+
+log = create_logger()
 
 
 class Operation(Model):
@@ -106,14 +138,26 @@ class RabbitMQServer(object):
         self.connection = None
         self.channel = None
 
-    def reconnect(self):
-        if self.connection is None or self.channel is None or self.connection.is_closed:
-            credentials = pika.PlainCredentials(CONFIG['RABBITMQ']['ACCOUNT'], CONFIG['RABBITMQ']['PASSWORD'])
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                    CONFIG['RABBITMQ']['URL'], CONFIG['RABBITMQ']['PORT'], '/', credentials))
-            self.channel = self.connection.channel()
-            return True
-        return False
+    def connect(self):
+        log.info("Initalizing network connection")
+        credentials = pika.PlainCredentials(CONFIG['RABBITMQ']['ACCOUNT'], CONFIG['RABBITMQ']['PASSWORD'])
+        parameters = pika.ConnectionParameters(CONFIG['RABBITMQ']['URL'], CONFIG['RABBITMQ']['PORT'], '/', credentials)
+
+        connected = False
+        while not connected:  # retry if establishing a connection fails
+            try:
+                log.info("Trying to establish a connection to the manager")
+                self.connection = pika.BlockingConnection(parameters=parameters)
+                self.channel = self.connection.channel()
+                connected = True
+                log.info("Connection to manager established")
+            except pika.exceptions.AMQPConnectionError as pe:  # if connection can't be established
+                log.error("Wasn't able to open a connection to the manager: %s" % pe)
+                time.sleep(30)
+
+    def connection_cleanup(self):
+        self.channel.close()
+        self.connection.close()
 
 
 class TaskReceiver(Thread, RabbitMQServer):
@@ -131,10 +175,10 @@ class TaskReceiver(Thread, RabbitMQServer):
         global OPERATE_STATUS
         try:
             task_data = json.loads(body.decode('utf-8'))
-            print(" [x] Received %r" % (task_data,))
+            log.info("[x] Received %r" % (task_data,))
 
             if MAC not in task_data['maclist']:
-                debug_helper('the task does not belong to me')
+                log.info('the task does not belong to me')
                 return
 
             taskid = task_data['taskid']
@@ -145,7 +189,7 @@ class TaskReceiver(Thread, RabbitMQServer):
 
             OPERATE_STATUS_LOCK.acquire()
             if OPERATE_STATUS is not None:
-                debug_helper('the machine is busy')
+                log.warning('the machine is busy')
                 Operation.create(taskid=taskid, userid=userid, action=action,
                                  parameter=json.dumps(parameter),
                                  maclist='|'.join(maclist),
@@ -157,7 +201,7 @@ class TaskReceiver(Thread, RabbitMQServer):
             OPERATE_STATUS_LOCK.release()
 
             # 将任务添加到数据库中
-            debug_helper('insert task into database')
+            log.info('insert task into database')
             operation = Operation(taskid=taskid, userid=userid, action=action,
                                   parameter=json.dumps(parameter), maclist='|'.join(maclist))
             operation.accept = True
@@ -169,22 +213,32 @@ class TaskReceiver(Thread, RabbitMQServer):
             self.queue.put(json.dumps(task_data))
 
         except Exception as err:
-            debug_helper(err)
+            log.error(err)
 
     def run(self):
-        debug_helper('TaskReceiver running ...')
+        log.info('TaskReceiver running ...')
 
         # 生成队列，并绑定到交换机上
         read_queue = 'MechineReadQueue' + MAC.upper()
 
+        self.connect()      # 连接RabbitMQ，并返回connection和channel
+        self.channel.exchange_declare(exchange=CONFIG['READ_SWITCH'], exchange_type='fanout')
+        self.channel.queue_declare(queue=read_queue)
+        self.channel.queue_bind(exchange=CONFIG['READ_SWITCH'], queue=read_queue)
+        self.channel.basic_consume(self.handler, queue=read_queue, no_ack=True)
+
         while True:
-            if self.reconnect():
-                # 定义交换机
+            try:
+                self.channel.start_consuming()  # blocking call
+            except pika.exceptions.ConnectionClosed:    # when connection is lost, e.g. rabbitmq not running
+                log.warning("Lost connection to rabbitmq service on manager")
+                # time.sleep(10)      # reconnect timer
+                logging.info("Trying to reconnect...")
+                self.connect()
                 self.channel.exchange_declare(exchange=CONFIG['READ_SWITCH'], exchange_type='fanout')
                 self.channel.queue_declare(queue=read_queue)
                 self.channel.queue_bind(exchange=CONFIG['READ_SWITCH'], queue=read_queue)
                 self.channel.basic_consume(self.handler, queue=read_queue, no_ack=True)
-            self.channel.start_consuming()
 
 
 def create_or_update_mine_info(parameter, mine_status):
@@ -192,7 +246,7 @@ def create_or_update_mine_info(parameter, mine_status):
     创建或者更新当前的挖矿信息，当mine_status不为None时，仅仅更新挖矿状态，parameter必须为字典类型
     :return:
     """
-    debug_helper("create or update mine info table")
+    log.info("create or update mine info table")
 
     if parameter is not None:
         secondary_coin_name = parameter.get('params', None).get('config', None) \
@@ -249,7 +303,8 @@ def create_or_update_mine_info(parameter, mine_status):
         mine_info.update_time = datetime.now()
         mine_info.save()
     except Exception as err:
-        debug_helper(str(err) + ': ' + 'no mine info recode in table, so create it!')
+        log.warning(str(err) + ': ' + 'no mine info recode in table, so create it!')
+
         # 将执行任务的信息保存到数据库中
         if parameter is not None:
             MineInfo.create(coin_name=coin_name, overclock=overclock, program=program, algorithm=algorithm,
@@ -293,7 +348,7 @@ class TaskHandler(Thread, RabbitMQServer):
         # 执行完成后根据执行结果更新变量及数据库
         operation = Operation.get_or_none(taskid=taskid)
         if operation is None:
-            debug_helper('taskid is not in database')
+            log.info('taskid is not in database')
             return False
 
         result = self.filling_result(finish_status)
@@ -309,20 +364,40 @@ class TaskHandler(Thread, RabbitMQServer):
                      'maclist': [MAC], 'resp_type': 'completed',
                      'result': self.filling_result(finish_status=finish_status,
                                                    failed_reason=failed_reason)}
-        debug_helper('completed response: ' + json.dumps(resp_info))
-        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+        log.info('completed response: ' + json.dumps(resp_info))
+
+        if self.connection.is_open:
+            try:
+                self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+            except Exception as err:
+                log.error("Error while sending data to queue:\n%s" % err)
+                return
+        else:
+            self.connect()
+            self.channel.queue_declare(queue=write_queue, auto_delete=True)
+            try:
+                self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+            except Exception as err:
+                log.error("Error while sending data to queue:\n%s" % err)
+                return
 
     def run(self):
-        debug_helper('TaskHandler running ...')
+        log.info('TaskHandler running ...')
+
+        self.connect()  # 连接RabbitMQ，并返回connection和channel
+
         global OPERATE_STATUS
         while True:
-            self.reconnect()
             try:
                 task_data = self.queue.get()
 
+                # 判断RabbitMQ连接是否打开
+                if not self.connection.is_open:
+                    self.connect()
+
                 feedback_stage = None
 
-                debug_helper("Handle Task: " + task_data)
+                log.info("Handle Task: " + task_data)
 
                 OPERATE_STATUS_LOCK.acquire()
                 OPERATE_STATUS = 'ACCEPT'  # 标记已经接收新的任务，不能再接收，但是可以记录接收的任务，不执行
@@ -341,18 +416,36 @@ class TaskHandler(Thread, RabbitMQServer):
 
                 # 声明一个队列，用于给RabbitMQ发送接收任务的应答消息
                 write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
-                self.channel.queue_declare(queue=write_queue, auto_delete=True)
-                resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                             'maclist': [MAC], 'resp_type': 'confirm',
-                             'result': self.filling_result(is_random=True)}
-                debug_helper('confirm response: ' + json.dumps(resp_info))
-                self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
 
-                feedback_stage = 'confirm'      # 更新反馈阶段变量
+                if self.connection.is_open:
+                    self.channel.queue_declare(queue=write_queue, auto_delete=True)
+                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                 'maclist': [MAC], 'resp_type': 'confirm',
+                                 'result': self.filling_result(is_random=True)}
+                    log.info('confirm response: ' + json.dumps(resp_info))
+                    try:
+                        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                        feedback_stage = 'confirm'  # 更新反馈阶段变量
+                    except Exception as err:
+                        log.error("Error while sending data to queue:\n%s" % err)
+                        continue
+                else:
+                    self.connect()
+                    self.channel.queue_declare(queue=write_queue, auto_delete=True)
+                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                 'maclist': [MAC], 'resp_type': 'confirm',
+                                 'result': self.filling_result(is_random=True)}
+                    log.info('confirm response: ' + json.dumps(resp_info))
+                    try:
+                        self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                        feedback_stage = 'confirm'  # 更新反馈阶段变量
+                    except Exception as err:
+                        log.error("Error while sending data to queue:\n%s" % err)
+                        continue
 
                 # 执行矿机命令
                 if action == 'Shutdown':            # 关机
-                    debug_helper("execute shutdown task")
+                    log.info("execute shutdown task")
 
                     # 在关机之前更新数据库及上报执行结果，默认关机操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue, finish_status='success',
@@ -361,7 +454,7 @@ class TaskHandler(Thread, RabbitMQServer):
                     feedback_stage = 'completed'    # 更新反馈阶段变量
                     os.system("shutdown -h now")
                 elif action == 'Shelve':            # 下架，直接停止所有的挖矿软件
-                    debug_helper("execute shelve task")
+                    log.info("execute shelve task")
 
                     cmd = "python3 ./operate-script/remove.py"
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
@@ -377,7 +470,7 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 更新本地的挖矿信息数据库
                     create_or_update_mine_info(parameter=None, mine_status="unmining")
                 elif action == 'PauseMining':       # 暂停挖矿，与下架一样，直接停止所有的挖矿软件
-                    debug_helper("execute pause mining task")
+                    log.info("execute pause mining task")
 
                     cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
@@ -393,14 +486,14 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 更新本地的挖矿信息数据库
                     create_or_update_mine_info(parameter=None, mine_status="unmining")
                 elif action == 'RestartMining':     # 重启挖矿，读取配置文件，启动挖矿程序
-                    debug_helper("execute restart mining task")
+                    log.info("execute restart mining task")
 
                     # 从配置文件中或者操作数据库中获取配置参数
                     try:
                         with open(CONFIG['CONFIG_NAME'], 'r', encoding='utf-8') as fr:
                             parameter = fr.read()
                     except Exception as error:
-                        debug_helper(str(error) + ': ' + "can't read config from file")
+                        log.info(str(error) + ': ' + "can't read config from file")
                         # 完成下架操作后更新本地数据库并上报执行结果
                         self.update_feedback(taskid, userid, action, write_queue,
                                              finish_status='failed', status='finished',
@@ -412,12 +505,12 @@ class TaskHandler(Thread, RabbitMQServer):
                     parameter = json.loads(parameter)
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
-                    trace_helper('stop all mine and overclock')
+                    log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
-                    trace_helper('start mine according to config')
+                    log.info('start mine according to config')
 
                     # json_params = json.dumps(parameter['params'])
                     cmd = "python3 ./operate-script/start.py " + PWD
@@ -441,20 +534,20 @@ class TaskHandler(Thread, RabbitMQServer):
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
                     create_or_update_mine_info(parameter, mine_status=mine_status)
                 elif action == 'ConfigRestart':     # 配置并重启挖矿，将配置保存到本地配置文件中
-                    debug_helper("execute config restart task")
+                    log.info("execute config restart task")
 
                     # 将配置保存到文件中
-                    trace_helper("save config into file")
+                    log.info("save config into file")
                     with open(CONFIG['CONFIG_NAME'], 'w', encoding='utf-8') as fw:
                         fw.write(json.dumps(parameter))
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
-                    trace_helper('stop all mine and overclock')
+                    log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
-                    trace_helper('start mine according to config')
+                    log.info('start mine according to config')
 
                     # json_params = json.dumps(parameter['params'])
                     cmd = "python3 ./operate-script/start.py " + PWD
@@ -478,29 +571,55 @@ class TaskHandler(Thread, RabbitMQServer):
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
                     create_or_update_mine_info(parameter, mine_status=mine_status)
                 elif action == 'Restart':           # 重启矿机
-                    debug_helper("execute restart task")
+                    log.info("execute restart task")
                     # 在重启之前更新数据库及上报执行结果，默认关机操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue, finish_status='success',
                                          status='reboot', failed_reason='')
 
-                    feedback_stage = 'completed'  # 更新反馈阶段变量
+                    feedback_stage = 'completed'    # 更新反馈阶段变量
                     os.system("reboot -h now")
                 elif action == 'Overclock':         # 主机超频
                     pass
                 else:
-                    debug_helper('Unknown operation')
+                    log.warning('Unknown operation')
             except Exception as err:
-                debug_helper(str(err) + ": " + "task handler occur fatal error!")
-                if feedback_stage is None:
-                    resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
-                                 'maclist': [MAC], 'resp_type': 'confirm',
-                                 'result': self.filling_result(is_random=True)}
-                    debug_helper('confirm response: ' + json.dumps(resp_info))
-                    self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                log.error(str(err) + ": " + "task handler occur fatal error!")
 
-                    self.update_feedback(taskid, userid, action, write_queue,
-                                         finish_status='failed', status='finished',
-                                         failed_reason=str(err))
+                # 声明一个队列，用于给RabbitMQ发送接收任务的应答消息
+                write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
+
+                if feedback_stage is None:
+                    if self.connection.is_open:
+                        self.channel.queue_declare(queue=write_queue, auto_delete=True)
+
+                        resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                     'maclist': [MAC], 'resp_type': 'confirm',
+                                     'result': self.filling_result(is_random=True)}
+                        log.info('confirm response: ' + json.dumps(resp_info))
+                        try:
+                            self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                            self.update_feedback(taskid, userid, action, write_queue,
+                                                 finish_status='failed', status='finished',
+                                                 failed_reason=str(err))
+                        except Exception as err:
+                            log.error("Error while sending data to queue:\n%s" % err)
+                            continue
+                    else:
+                        self.connect()
+                        self.channel.queue_declare(queue=write_queue, auto_delete=True)
+
+                        resp_info = {'user_id': userid, 'action': action, 'taskid': taskid,
+                                     'maclist': [MAC], 'resp_type': 'confirm',
+                                     'result': self.filling_result(is_random=True)}
+                        log.info('confirm response: ' + json.dumps(resp_info))
+                        try:
+                            self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+                            self.update_feedback(taskid, userid, action, write_queue,
+                                                 finish_status='failed', status='finished',
+                                                 failed_reason=str(err))
+                        except Exception as err:
+                            log.error("Error while sending data to queue:\n%s" % err)
+                            continue
                 elif feedback_stage == 'confirm':
                     self.update_feedback(taskid, userid, action, write_queue,
                                          finish_status='failed', status='finished',
@@ -514,7 +633,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
 
 def system_boot():
-    debug_helper('system boot check')
+    log.info('system boot check')
 
     # RabbitMQ连接
     credentials = pika.PlainCredentials(CONFIG['RABBITMQ']['ACCOUNT'], CONFIG['RABBITMQ']['PASSWORD'])
@@ -527,10 +646,13 @@ def system_boot():
     if operation is not None:
         taskid = operation.taskid
         write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
-        channel.queue_declare(queue=write_queue)
-        resp_info = {'user_id': operation.userid, 'action': operation.action, 'taskid': taskid,
-                     'maclist': MAC, 'resp_type': 'completed'}
-        channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+        try:
+            channel.queue_declare(queue=write_queue)
+            resp_info = {'user_id': operation.userid, 'action': operation.action, 'taskid': taskid,
+                         'maclist': MAC, 'resp_type': 'completed'}
+            channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
+        except Exception as err:
+            log.error("Error while sending data to queue:\n%s" % err)
 
         # 更新数据库记录
         result = {'isfinished': True, 'create': str(datetime.now())}
@@ -550,17 +672,17 @@ def system_boot():
                     with open(CONFIG['CONFIG_NAME'], 'r', encoding='utf-8') as fr:
                         parameter = fr.read()
                 except Exception as error:
-                    debug_helper(str(error) + ': ' + "can't read config from file")
+                    log.info(str(error) + ': ' + "can't read config from file")
                     return
                 parameter = json.loads(parameter)
 
                 # 关闭所有的挖矿程序及超频，默认执行成功
-                trace_helper('stop all mine and overclock')
+                log.info('stop all mine and overclock')
                 cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
                 subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                 # 根据配置启动挖矿程序及超频
-                trace_helper('start mine according to config')
+                log.info('start mine according to config')
 
                 # json_params = json.dumps(parameter['params'])
                 cmd = "python3 ./operate-script/start.py " + PWD
@@ -577,11 +699,12 @@ def system_boot():
                 mine_status = 'mining' if finish_status == 'success' else 'unmining'
                 create_or_update_mine_info(parameter, mine_status=mine_status)
         except Exception as err:
-            debug_helper(str(err) + ': ' + 'no mine info recode in table')
+            log.error(str(err) + ': ' + 'no mine info recode in table')
 
 
 if __name__ == '__main__':
-    debug_helper('create operation and info table if not exist')
+    log.info('create operation and info table if not exist')
+
     Operation.create_table()
     MineInfo.create_table()
 
@@ -599,5 +722,5 @@ if __name__ == '__main__':
     for thread in threads:
         thread.join()
 
-    debug_helper('MainThread over')
+    log.info('MainThread over')
 
