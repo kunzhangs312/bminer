@@ -1,13 +1,11 @@
 import pika
 import pika.exceptions
 import json
-# import demjson
 import uuid
 import time
 import os
 import subprocess
-import logging
-import logging.handlers
+import logger
 
 from queue import Queue
 from threading import Thread, Lock
@@ -20,7 +18,8 @@ CONFIG = {
     'RABBITMQ': {
         'ACCOUNT': 'machine',
         'PASSWORD': '161e85c737a844cd',
-        'URL': '192.168.0.64',
+        # 'URL': '192.168.0.64',
+        'URL': 'localhost',
         'PORT': 5672
     },
     'READ_SWITCH': 'BrokerSendSwitch',
@@ -28,7 +27,7 @@ CONFIG = {
 
     'CONFIG_NAME': 'mine.conf',
     'TRACE_ENABLE': True,
-    'DEV_ENV': False,
+    'DEV_ENV': True,
 }
 
 MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex[-12:]
@@ -39,44 +38,10 @@ MINE_SCRIPT_DIRNAME = 'miner-script'
 MINE_SCRIPT_PWD = PWD + '/' + MINE_SCRIPT_DIRNAME
 
 
-def create_logger(file_name='taskmanager.log', file_handler_level=logging.WARNING, stream_handler_level=logging.DEBUG):
-    """
-    创建一个logging对象，并将日志按照特定Log等级输出到特定日志文件和控制台。
-    :param file_name: 日志文件的名称，默认为log.txt
-    :param file_handler_level: 将特定等级的日志写入到文件中
-    :param stream_handler_level: 将特定等级的日志输出到控制台
-    :return: logging对象
-    """
-    logger = logging.getLogger(file_name)
-    # 这里进行判断，如果logger.handlers列表为空，则添加，否则，直接去写日志
-    # 这样做可以避免不同文件中都调用该函数时都添加addHandler，造成重复输出的问题。
-    if not logger.handlers:
-        logger.setLevel(logging.INFO)       # Log等级总开关
-        # 定义handle的输出格式
-        formatter = logging.Formatter("%(asctime)s [%(filename)s-%(lineno)d: %(funcName)s]"
-                                      " %(levelname)s: %(message)s")
-        fh = logging.handlers.TimedRotatingFileHandler(file_name, 'D', 1, 10, 'UTF-8')
-        fh.setLevel(file_handler_level)   # 设置输出到日志文件的Log等级
-
-        # 创建一个handler，用于输出到控制台
-        ch = logging.StreamHandler()
-        ch.setLevel(stream_handler_level)
-
-        # 定义handler的输出格式
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-
-        # 将logger添加到handler中
-        logger.addHandler(fh)
-        logger.addHandler(ch)
-
-    return logger
-
-
 # 建立Sqlite数据库连接
 SQDB = SqliteDatabase('operation.db')
 
-log = create_logger()
+log = logger.create_logger(file_name='taskmanager.log')
 
 
 class Operation(Model):
@@ -213,7 +178,7 @@ class TaskReceiver(Thread, RabbitMQServer):
             self.queue.put(json.dumps(task_data))
 
         except Exception as err:
-            log.error(err)
+            log.exception(err)
 
     def run(self):
         log.info('TaskReceiver running ...')
@@ -229,11 +194,10 @@ class TaskReceiver(Thread, RabbitMQServer):
 
         while True:
             try:
-                self.channel.start_consuming()  # blocking call
+                self.channel.start_consuming()          # blocking call
             except pika.exceptions.ConnectionClosed:    # when connection is lost, e.g. rabbitmq not running
                 log.warning("Lost connection to rabbitmq service on manager")
-                # time.sleep(10)      # reconnect timer
-                logging.info("Trying to reconnect...")
+                log.warning("Trying to reconnect...")
                 self.connect()
                 self.channel.exchange_declare(exchange=CONFIG['READ_SWITCH'], exchange_type='fanout')
                 self.channel.queue_declare(queue=read_queue)
@@ -368,7 +332,8 @@ class TaskHandler(Thread, RabbitMQServer):
 
         try:
             self.channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
-        except Exception:
+        except Exception as err:
+            log.warning("Error while sending data to queue:\n%s" % err)
             self.connect()
             self.channel.queue_declare(queue=write_queue, auto_delete=True)
             try:
@@ -380,14 +345,14 @@ class TaskHandler(Thread, RabbitMQServer):
     def run(self):
         log.info('TaskHandler running ...')
 
-        self.connect()  # 连接RabbitMQ，并返回connection和channel
+        # self.connect()  # 连接RabbitMQ，并返回connection和channel
 
         global OPERATE_STATUS
         while True:
             try:
                 task_data = self.queue.get()
 
-                # 判断RabbitMQ连接是否打开
+                # 连接RabbitMQ，并返回connection和channel
                 self.connect()
 
                 feedback_stage = None
