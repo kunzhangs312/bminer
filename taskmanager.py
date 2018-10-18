@@ -35,8 +35,8 @@ MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex
 OPERATE_STATUS = None
 OPERATE_STATUS_LOCK = Lock()
 PWD = os.getcwd()
-OPERATE_SCRIPT_DIRNAME = 'operate-script'
-OPERATE_SCRIPT_PWD = PWD + '/' + OPERATE_SCRIPT_DIRNAME
+MINE_SCRIPT_DIRNAME = 'miner-script'
+MINE_SCRIPT_PWD = PWD + '/' + MINE_SCRIPT_DIRNAME
 
 
 def create_logger(file_name='taskmanager.log', file_handler_level=logging.WARNING, stream_handler_level=logging.DEBUG):
@@ -472,7 +472,7 @@ class TaskHandler(Thread, RabbitMQServer):
                 elif action == 'PauseMining':       # 暂停挖矿，与下架一样，直接停止所有的挖矿软件
                     log.info("execute pause mining task")
 
-                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
+                    cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
                     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     # stdout, _ = p.communicate()
                     # out = stdout.decode('utf-8')
@@ -506,7 +506,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     log.info('stop all mine and overclock')
-                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
+                    cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
@@ -543,7 +543,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     log.info('stop all mine and overclock')
-                    cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
+                    cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
                     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                     # 根据配置启动挖矿程序及超频
@@ -678,7 +678,7 @@ def system_boot():
 
                 # 关闭所有的挖矿程序及超频，默认执行成功
                 log.info('stop all mine and overclock')
-                cmd = "python3 ./operate-script/stop.py " + OPERATE_SCRIPT_PWD
+                cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
                 subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
                 # 根据配置启动挖矿程序及超频
