@@ -92,7 +92,7 @@ def start_mine():
                     + program + ".py " + "'" + params_str + "'" + " \n")
 
         # 3.吊起shell脚本执行
-        subprocess.Popen("sh ./" + shell_name, shell=True, stdout=subprocess.PIPE)
+        subprocess.Popen("sh ./" + shell_name, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
 
         # 4.检查执行是否起来
         time.sleep(3)
