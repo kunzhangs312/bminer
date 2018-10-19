@@ -19,6 +19,8 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
+log = logger.create_logger(file_name='xmrig-nvidia.log')
+
 
 class Miner(threading.Thread):
     miner = None
@@ -54,10 +56,10 @@ class Miner(threading.Thread):
         while True:
             ret_code = self.miner.poll()
             if ret_code is not None:
-                log.warning("miner has exit: {}".format(ret_code))
+                log.error("miner has exit: {}".format(ret_code))
                 return
             if self.is_break:
-                log.warning("miner stoped")
+                log.error("miner stoped")
                 self.miner.kill()
                 return
             time.sleep(60)
@@ -133,7 +135,7 @@ def renderCmd(pwd):
     Bin = '{}/xmrig-nvidia/xmrig-nvidia '.format(pwd)
     Primary = config['Primary']
     if len(Primary['WalletAddress']) == 0:
-        print('none WalletAddress')
+        log.error('none WalletAddress')
         return None
     Bin += "-o {} ".format(Primary['PoolAddress'])
     Bin += "-u {}.{} ".format(Primary['WalletAddress'], config['Worker'])
@@ -163,13 +165,10 @@ def main():
     miner.join()
 
 
-log = logger.create_logger(file_name='xmrig-nvidia.log')
-
 if __name__ == '__main__':
     log.info("=" * 60 + "start xmrig-nvidia mine program" + "=" * 60)
 
     if len(sys.argv) < 2:
-        print("please input the params")
         log.error("usage: python3 xmrig-nvidia.py mine_parameter_json_str")
     else:
         PARAM = sys.argv[1]
