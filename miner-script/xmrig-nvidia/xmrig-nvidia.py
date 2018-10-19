@@ -13,7 +13,7 @@ from pykafka import KafkaClient
 
 PARAM = ""
 
-LOGGER_PATH = "/media/zhkn/mechanic/Workspace/python/project/iMiner"
+LOGGER_PATH = "/opt/miner/iMiner"
 if LOGGER_PATH not in sys.path:
     sys.path.insert(0, LOGGER_PATH)
 

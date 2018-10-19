@@ -8,7 +8,7 @@ import sys
 MINE_CONF_NAME = 'mine.conf'
 MINE_CONF_PATH = '../' + MINE_CONF_NAME
 
-LOGGER_PATH = "/media/zhkn/mechanic/Workspace/python/project/iMiner"
+LOGGER_PATH = "/opt/miner/iMiner"
 if LOGGER_PATH not in sys.path:
     sys.path.insert(0, LOGGER_PATH)
 
@@ -56,10 +56,10 @@ def start_mine():
                 fp.truncate()
         with open(shell_name, "r+") as f:
             f.write("# !/bin/sh \n")
-            # f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/"
-            #         + program + ".py " + "'" + params_str + "'" + " \n")
-            f.write("python3 /media/zhkn/mechanic/Workspace/python/project/iMiner/miner-script/" + program + "/"
+            f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/"
                     + program + ".py " + "'" + params_str + "'" + " \n")
+            # f.write("python3 /media/zhkn/mechanic/Workspace/python/project/iMiner/miner-script/" + program + "/"
+            #         + program + ".py " + "'" + params_str + "'" + " \n")
 
         # 3.吊起shell脚本执行
         subprocess.Popen("sh ./" + shell_name, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))

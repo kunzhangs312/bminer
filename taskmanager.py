@@ -27,7 +27,7 @@ CONFIG = {
 
     'CONFIG_NAME': 'mine.conf',
     'TRACE_ENABLE': True,
-    'DEV_ENV': True,
+    'DEV_ENV': False,
 }
 
 MAC = 'e0d55e69c514' if CONFIG['DEV_ENV'] else uuid.UUID(int=uuid.getnode()).hex[-12:]
