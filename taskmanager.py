@@ -418,8 +418,14 @@ class TaskHandler(Thread, RabbitMQServer):
                 elif action == 'PauseMining':       # 暂停挖矿，与下架一样，直接停止所有的挖矿软件
                     log.info("execute pause mining task")
 
+                    log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+
+                    log.info("sleep 10 second for waiting all mine program shutdown!")
+                    time.sleep(10)
+
+                    # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                     # stdout, _ = p.communicate()
                     # out = stdout.decode('utf-8')
                     # 完成暂停挖矿操作后更新本地数据库，但不会上报服务器
@@ -453,7 +459,10 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+
+                    log.info("sleep 10 second for waiting all mine program shutdown!")
+                    time.sleep(10)
 
                     # 根据配置启动挖矿程序及超频
                     log.info('start mine according to config')
@@ -490,7 +499,10 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+
+                    log.info("sleep 10 second for waiting all mine program shutdown!")
+                    time.sleep(10)
 
                     # 根据配置启动挖矿程序及超频
                     log.info('start mine according to config')
@@ -608,7 +620,10 @@ def system_boot():
                 # 关闭所有的挖矿程序及超频，默认执行成功
                 log.info('stop all mine and overclock')
                 cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+
+                log.info("sleep 10 second for waiting all mine program shutdown!")
+                time.sleep(10)
 
                 # 根据配置启动挖矿程序及超频
                 log.info('start mine according to config')
