@@ -18,8 +18,8 @@ CONFIG = {
     'RABBITMQ': {
         'ACCOUNT': 'machine',
         'PASSWORD': '161e85c737a844cd',
-        # 'URL': '192.168.0.64',
-        'URL': 'localhost',
+        'URL': '192.168.0.64',
+        # 'URL': 'localhost',
         'PORT': 5672
     },
     'READ_SWITCH': 'BrokerSendSwitch',
