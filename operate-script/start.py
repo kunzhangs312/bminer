@@ -5,6 +5,8 @@ import subprocess
 import time
 import sys
 
+from threading import Thread, Timer
+
 MINE_CONF_NAME = 'mine.conf'
 MINE_CONF_PATH = '../' + MINE_CONF_NAME
 
@@ -14,7 +16,17 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
-log = logger.create_logger(file_name='mine_start.log')
+log = logger.create_logger(file_name='mine_start.log', enable_stream=False)
+
+
+def output_exit(result):
+    """
+    输出result的值并结束程序
+    :param result:
+    :return:
+    """
+    print(json.dumps(result))
+    os._exit(0)
 
 
 def start_mine():
@@ -30,13 +42,9 @@ def start_mine():
     # {"cpu":{"frequency":2800000,"frequencey":0},"gpu":[{"Id":0,"BusID":"","Level":3,
     # "PowerLimit":117,"GPUGraphicsClockOffset":0,"GPUMemoryTransferRateOffset":1000,
     # "GPUTargetFanSpeed":0}],"fan":[{"Id":0,"BusID":"0000:01:00.0","GPUTargetFanSpeed":90}]}}"""
-    log.info("=" * 60 + "New Start" + "=" * 60)
-    log.info("start mine program ...")
     try:
         with open(MINE_CONF_PATH, 'r', encoding='utf-8') as fr:
             parameter = fr.read()
-
-        log.info(parameter)
 
         parameter = json.loads(parameter)
         params_str = json.dumps(parameter['params'])
@@ -58,28 +66,34 @@ def start_mine():
             f.write("# !/bin/sh \n")
             f.write("python3 /opt/miner/iMiner/miner-script/" + program + "/"
                     + program + ".py " + "'" + params_str + "'" + " \n")
-            # f.write("python3 /media/zhkn/mechanic/Workspace/python/project/iMiner/miner-script/" + program + "/"
-            #         + program + ".py " + "'" + params_str + "'" + " \n")
 
         # 3.吊起shell脚本执行
         subprocess.Popen("sh ./" + shell_name, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
 
         # 4.检查执行是否起来
         time.sleep(3)
-        lines = os.popen('ps -ef|grep ' + program)
+        lines = os.popen('ps -ef | grep ' + program)
         lines = lines.readlines()
         if len(lines) > 2:
             result = {"finish_status": "success", "failed_reason": ""}
-            print(json.dumps(result))
+            output_exit(result)
         else:
             result = {"finish_status": "failed", "failed_reason": "can't start mine program"}
-            print(json.dumps(result))
+            output_exit(result)
     except Exception as err:
+        log.exception(err)
         result = {"finish_status": "failed", "failed_reason": "can't read config from file"}
-        print(json.dumps(result))
-        log.error(err)
+        output_exit(result)
 
-    log.info("=" * 129)
+
+def shutdown():
+    """
+    强制退出程序
+    :return:
+    """
+    log.warning("timeout")
+    result = {"finish_status": "failed", "failed_reason": "timeout"}
+    output_exit(result)
 
 
 if __name__ == '__main__':
@@ -90,4 +104,10 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:  # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_CONF_PATH = sys.argv[1] + '/' + MINE_CONF_NAME
 
-    start_mine()
+    t = Thread(name='Thread-startminer', target=start_mine)
+    t.start()
+
+    tm = Timer(60, shutdown)
+    tm.start()
+
+    tm.join()

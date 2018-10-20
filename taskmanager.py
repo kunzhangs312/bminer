@@ -420,18 +420,22 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+                    stdout, _ = p.communicate()     # stop.py脚本中有超时退出程序，所以不用担心会阻塞
+                    json_result = stdout.decode('utf-8')
+                    result = json.loads(json_result)
 
-                    log.info("sleep 10 second for waiting all mine program shutdown!")
-                    time.sleep(10)
+                    # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
+                    finish_status = result['finish_status']
+                    failed_reason = result['failed_reason']
 
-                    # p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                    # stdout, _ = p.communicate()
-                    # out = stdout.decode('utf-8')
+                    if finish_status != 'success':
+                        log.error("stop all mine program failed, reason: {}".format(failed_reason))
+
                     # 完成暂停挖矿操作后更新本地数据库，但不会上报服务器
                     self.update_feedback(taskid, userid, action, write_queue,
-                                         finish_status='success', status='finished',
-                                         failed_reason='')
+                                         finish_status=finish_status, status='finished',
+                                         failed_reason=failed_reason)
 
                     feedback_stage = 'completed'  # 更新反馈阶段变量
 
@@ -456,27 +460,40 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     parameter = json.loads(parameter)
 
-                    # 关闭所有的挖矿程序及超频，默认执行成功
+                    # 关闭所有的挖矿程序及超频
                     log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
-
-                    log.info("sleep 10 second for waiting all mine program shutdown!")
-                    time.sleep(10)
-
-                    # 根据配置启动挖矿程序及超频
-                    log.info('start mine according to config')
-
-                    # json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py " + PWD
-                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                    stdout, _ = p.communicate()
+                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+                    stdout, _ = p.communicate()         # stop.py脚本中有超时退出程序，所以不用担心会阻塞
                     json_result = stdout.decode('utf-8')
                     result = json.loads(json_result)
 
                     # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
                     finish_status = result['finish_status']
                     failed_reason = result['failed_reason']
+
+                    if finish_status == "success":
+                        log.info("stop mine program success! sleep 10 second for waiting all mine program shutdown!")
+                        time.sleep(10)
+
+                        # 根据配置启动挖矿程序及超频
+                        log.info('start mine according to config')
+
+                        # json_params = json.dumps(parameter['params'])
+                        cmd = "python3 ./operate-script/start.py " + PWD
+                        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                        stdout, _ = p.communicate()
+                        json_result = stdout.decode('utf-8')
+                        result = json.loads(json_result)
+
+                        # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
+                        finish_status = result['finish_status']
+                        failed_reason = result['failed_reason']
+
+                        if finish_status != 'success':
+                            log.error("start mine program failed, reason: {}".format(failed_reason))
+                    else:
+                        log.error("stop all mine program failed, reason: {}".format(failed_reason))
 
                     # 完成下架操作后更新本地数据库并上报执行结果
                     self.update_feedback(taskid, userid, action, write_queue,
@@ -499,24 +516,38 @@ class TaskHandler(Thread, RabbitMQServer):
                     # 关闭所有的挖矿程序及超频，默认执行成功
                     log.info('stop all mine and overclock')
                     cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                    subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
-
-                    log.info("sleep 10 second for waiting all mine program shutdown!")
-                    time.sleep(10)
-
-                    # 根据配置启动挖矿程序及超频
-                    log.info('start mine according to config')
-
-                    # json_params = json.dumps(parameter['params'])
-                    cmd = "python3 ./operate-script/start.py " + PWD
-                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                    stdout, _ = p.communicate()
+                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+                    stdout, _ = p.communicate()  # stop.py脚本中有超时退出程序，所以不用担心会阻塞
                     json_result = stdout.decode('utf-8')
                     result = json.loads(json_result)
 
                     # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
                     finish_status = result['finish_status']
                     failed_reason = result['failed_reason']
+
+                    if finish_status == "success":
+                        log.info("stop mine program success! sleep 10 second for waiting all mine program shutdown!")
+                        time.sleep(10)
+
+                        # 根据配置启动挖矿程序及超频
+                        log.info('start mine according to config')
+
+                        # json_params = json.dumps(parameter['params'])
+                        cmd = "python3 ./operate-script/start.py " + PWD
+                        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                        stdout, _ = p.communicate()
+                        json_result = stdout.decode('utf-8')
+                        result = json.loads(json_result)
+
+                        # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
+                        finish_status = result['finish_status']
+                        failed_reason = result['failed_reason']
+
+                        if finish_status != 'success':
+                            log.error("start mine program failed, reason: {}".format(failed_reason))
+
+                    else:
+                        log.error("stop all mine program failed, reason: {}".format(failed_reason))
 
                     # 完成下架操作后更新本地数据库并上报执行结果
                     self.update_feedback(taskid, userid, action, write_queue,
@@ -530,7 +561,7 @@ class TaskHandler(Thread, RabbitMQServer):
                     create_or_update_mine_info(parameter, mine_status=mine_status)
                 elif action == 'Restart':           # 重启矿机
                     log.info("execute restart task")
-                    # 在重启之前更新数据库及上报执行结果，默认关机操作不会失败
+                    # 在重启之前更新数据库，默认关机操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue, finish_status='success',
                                          status='reboot', failed_reason='')
 
@@ -539,7 +570,7 @@ class TaskHandler(Thread, RabbitMQServer):
                 elif action == 'Overclock':         # 主机超频
                     pass
                 else:
-                    log.warning('Unknown operation')
+                    log.error('Unknown operation')
             except Exception as err:
                 log.error(str(err) + ": " + "task handler occur fatal error!")
 
@@ -582,9 +613,11 @@ def system_boot():
         CONFIG['RABBITMQ']['URL'], CONFIG['RABBITMQ']['PORT'], '/', credentials))
     channel = connection.channel()
 
-    # 从数据库中获取最后一条接收的任务
+    # 从数据库中获取最后一条接收的任务，如果该任务是重启矿机，则需要在开机时接着上报数据
     operation = Operation.get_or_none(accept=True, status='reboot')
     if operation is not None:
+        log.warning('Before restarting the machine, The last task performed is Restart. Report and Update database.')
+
         taskid = operation.taskid
         write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
         try:
@@ -603,11 +636,18 @@ def system_boot():
         operation.save()
 
         connection.close()
+
+        # 重启矿机之后要不要启动挖矿？ 如果启动挖矿，如果通知给服务器？
     else:
+        # 矿机重启后，如果发现最后一条执行任务不是Restart，则说明矿机是异常掉电或者人为重启，这种情况下，
+        # 则从MineInfo表中获取掉电前的挖矿状态，根据这个状态来决定是否重启挖矿
         mine_info = MineInfo.select().order_by(MineInfo.create_time.desc()).limit(1)
         try:
             mine_info = MineInfo.get_or_none(id=mine_info[0])
-            if mine_info.mine_status == 'mining':
+            if mine_info.mine_status == 'mining':       # 掉电前矿机仍在运行
+                log.warning(
+                    'Before restarting the machine in mining, start mine and update database.')
+
                 # 从配置文件中或者操作数据库中获取配置参数
                 try:
                     with open(CONFIG['CONFIG_NAME'], 'r', encoding='utf-8') as fr:
@@ -620,28 +660,40 @@ def system_boot():
                 # 关闭所有的挖矿程序及超频，默认执行成功
                 log.info('stop all mine and overclock')
                 cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
-                subprocess.Popen(cmd, shell=True, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
-
-                log.info("sleep 10 second for waiting all mine program shutdown!")
-                time.sleep(10)
-
-                # 根据配置启动挖矿程序及超频
-                log.info('start mine according to config')
-
-                # json_params = json.dumps(parameter['params'])
-                cmd = "python3 ./operate-script/start.py " + PWD
-                p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
                 stdout, _ = p.communicate()
                 json_result = stdout.decode('utf-8')
                 result = json.loads(json_result)
 
                 # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
                 finish_status = result['finish_status']
-                # failed_reason = result['failed_reason']
+                failed_reason = result['failed_reason']
+                if finish_status == 'success':
+                    log.info("sleep 10 second for waiting all mine program shutdown!")
+                    time.sleep(10)
 
-                # 更新本地的挖矿信息数据库
-                mine_status = 'mining' if finish_status == 'success' else 'unmining'
-                create_or_update_mine_info(parameter, mine_status=mine_status)
+                    # 根据配置启动挖矿程序及超频
+                    log.info('start mine according to config')
+
+                    # json_params = json.dumps(parameter['params'])
+                    cmd = "python3 ./operate-script/start.py " + PWD
+                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+                    stdout, _ = p.communicate()
+                    json_result = stdout.decode('utf-8')
+                    result = json.loads(json_result)
+
+                    # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
+                    finish_status = result['finish_status']
+                    failed_reason = result['failed_reason']
+
+                    if finish_status != 'success':
+                        log.error("start mine program failed, reason: {}".format(failed_reason))
+
+                    # 更新本地的挖矿信息数据库
+                    mine_status = 'mining' if finish_status == 'success' else 'unmining'
+                    create_or_update_mine_info(parameter, mine_status=mine_status)
+                else:
+                    log.error("stop all mine program failed, reason: {}".format(failed_reason))
         except Exception as err:
             log.error(str(err) + ': ' + 'no mine info recode in table')
 

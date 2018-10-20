@@ -2,10 +2,8 @@
 import json
 import os
 import sys
-import time
-import uuid
-import logging
-import logging.handlers
+
+from threading import Thread, Timer
 
 MINE_BIN_PATH = "/opt/miner/bin"
 MINE_SCRIPT_PATH = '../miner-script'
@@ -18,7 +16,7 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
-log = logger.create_logger(file_name='mine_stop.log')
+log = logger.create_logger(file_name='mine_stop.log', enable_stream=False)
 
 
 def get_mineprogram():
@@ -32,43 +30,71 @@ def get_mineprogram():
         raise
 
 
+def output_exit(result):
+    """
+    输出result的值并结束程序
+    :param result:
+    :return:
+    """
+    print(json.dumps(result))
+    os._exit(0)
+
+
 def stop_mineprogram():
     """
     关闭所有的挖矿程序
     """
-    log.info("=" * 60 + "New Stop" + "="*60)
-    log.info("stop all mine program ...")
     try:
         mine_program = get_mineprogram()
         if not mine_program:
-            log.error("No mine program in {0}".format(MINE_SCRIPT_PATH))
-            return
+            log.warning("No mine program in {0}".format(MINE_SCRIPT_PATH))
+            result = {"finish_status": "success", "failed_reason": ""}
+            output_exit(result)
 
         for program in mine_program:
-            lines = os.popen('ps -ef|grep ' + program)
+            lines = os.popen('ps -ef | grep ' + program)
             lines = lines.readlines()
 
             for line in lines:
                 find_str = MINE_BIN_PATH + '/' + program + '/' + program
                 if line.find(find_str) != -1:
                     pid = line.split()[1]
-                    log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
+                    log.warning("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)
 
                 find2_str = MINE_BIN2_PATH + '/' + program + '/' + program + '.py'
                 if line.find(find2_str) != -1:
                     pid = line.split()[1]
-                    log.info("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
+                    log.warning("program: {program}, pid: {pid} will be killed".format(program=program, pid=pid))
                     os.system('kill ' + pid)
 
-    except Exception as err:
-        log.error(err)
+        result = {"finish_status": "success", "failed_reason": ""}
+        output_exit(result)
 
-    log.info("=" * 128)
+    except Exception as err:
+        log.exception(err)
+        result = {"finish_status": "failed", "failed_reason": str(err)}
+        output_exit(result)
+
+
+def shutdown():
+    """
+    强制退出程序
+    :return:
+    """
+    log.warning("timeout")
+    result = {"finish_status": "failed", "failed_reason": "timeout"}
+    output_exit(result)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:      # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_SCRIPT_PATH = sys.argv[1]
-    
-    stop_mineprogram()
+
+    t = Thread(name='Thread-stopminer', target=stop_mineprogram)
+    t.start()
+
+    tm = Timer(10, shutdown)
+    tm.start()
+
+    tm.join()
