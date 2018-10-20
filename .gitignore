@@ -4,6 +4,7 @@
 *.egg
 *.egg-info
 *.log
+mine.conf
 dist
 build
 .idea
