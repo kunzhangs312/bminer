@@ -19,7 +19,7 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
-log = logger.create_logger(file_name='xmrig-nvidia.log')
+log = logger.create_logger(file_name='xmrig-nvidia.log', enable_stream=False)
 
 
 class Miner(threading.Thread):

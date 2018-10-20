@@ -17,7 +17,7 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
-log = logger.create_logger(file_name='bminer.log')
+log = logger.create_logger(file_name='bminer.log', enable_stream=False)
 
 
 class Miner(threading.Thread):
