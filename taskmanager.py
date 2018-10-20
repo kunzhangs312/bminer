@@ -402,14 +402,23 @@ class TaskHandler(Thread, RabbitMQServer):
                 elif action == 'Shelve':            # 下架，直接停止所有的挖矿软件
                     log.info("execute shelve task")
 
-                    cmd = "python3 ./operate-script/remove.py"
-                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                    # stdout, _ = p.communicate()
-                    # out = stdout.decode('utf-8')
+                    cmd = "python3 ./operate-script/stop.py " + MINE_SCRIPT_PWD
+                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=open('/dev/null', 'w'))
+                    stdout, _ = p.communicate()  # stop.py脚本中有超时退出程序，所以不用担心会阻塞
+                    json_result = stdout.decode('utf-8')
+                    result = json.loads(json_result)
+
+                    # result格式：{"finish_status": "failed", "failed_reason": "can't start mine program"}
+                    finish_status = result['finish_status']
+                    failed_reason = result['failed_reason']
+
+                    if finish_status != 'success':
+                        log.error("remove machine failed, reason: {}".format(failed_reason))
+
                     # 完成下架操作后更新本地数据库并上报执行结果，默认下架操作不会失败
                     self.update_feedback(taskid, userid, action, write_queue,
-                                         finish_status='success', status='finished',
-                                         failed_reason='')
+                                         finish_status=finish_status, status='finished',
+                                         failed_reason=failed_reason)
 
                     feedback_stage = 'completed'    # 更新反馈阶段变量
 
