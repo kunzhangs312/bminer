@@ -2,12 +2,16 @@ import logging
 import logging.handlers
 
 
-def create_logger(file_name='start.log', file_handler_level=logging.WARNING, stream_handler_level=logging.INFO):
+def create_logger(file_name='start.log',
+                  file_handler_level=logging.WARNING,
+                  stream_handler_level=logging.INFO,
+                  enable_stream=True):
     """
     创建一个logging对象，并将日志按照特定Log等级输出到特定日志文件和控制台。
     :param file_name: 日志文件的名称，默认为log.txt
     :param file_handler_level: 将特定等级的日志写入到文件中
     :param stream_handler_level: 将特定等级的日志输出到控制台
+    :param enable_stream: 是否使能终端打印
     :return: logging对象
     """
     logger = logging.getLogger(file_name)
@@ -19,18 +23,15 @@ def create_logger(file_name='start.log', file_handler_level=logging.WARNING, str
         formatter = logging.Formatter("%(asctime)s [%(filename)s-%(lineno)d: %(funcName)s]"
                                       " %(levelname)s: %(message)s")
         fh = logging.handlers.TimedRotatingFileHandler(file_name, 'D', 1, 10, 'UTF-8')
-        fh.setLevel(file_handler_level)   # 设置输出到日志文件的Log等级
+        fh.setLevel(file_handler_level)     # 设置输出到日志文件的Log等级
+        fh.setFormatter(formatter)          # 定义handler的输出格式
+        logger.addHandler(fh)               # 将logger添加到handler中
 
-        # 创建一个handler，用于输出到控制台
-        ch = logging.StreamHandler()
-        ch.setLevel(stream_handler_level)
-
-        # 定义handler的输出格式
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-
-        # 将logger添加到handler中
-        logger.addHandler(fh)
-        logger.addHandler(ch)
+        if enable_stream:
+            # 创建一个handler，用于输出到控制台
+            ch = logging.StreamHandler()
+            ch.setLevel(stream_handler_level)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
 
     return logger
