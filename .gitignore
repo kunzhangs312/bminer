@@ -4,6 +4,7 @@
 *.egg
 *.egg-info
 *.log
+*.spec
 mine.conf
 dist
 build
