@@ -4,6 +4,7 @@ import json
 import uuid
 import time
 import os
+import sys
 import subprocess
 import logger
 
@@ -709,23 +710,26 @@ def system_boot():
 
 if __name__ == '__main__':
     log.info('create operation and info table if not exist')
+    try:
+        Operation.create_table()
+        MineInfo.create_table()
 
-    Operation.create_table()
-    MineInfo.create_table()
+        # 开机检查
+        system_boot()
 
-    # 开机检查
-    system_boot()
+        # 声明进程间通信的消息队列
+        queue = Queue()
 
-    # 声明进程间通信的消息队列
-    queue = Queue()
+        threads = [TaskReceiver(queue), TaskHandler(queue)]
 
-    threads = [TaskReceiver(queue), TaskHandler(queue)]
+        for thread in threads:
+            thread.start()
 
-    for thread in threads:
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-
-    log.info('MainThread over')
-
+        for thread in threads:
+            thread.join()
+    except KeyboardInterrupt:
+        log.warning("Shut down task manager!")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
