@@ -217,7 +217,7 @@ def create_or_update_mine_info(parameter, mine_status):
         secondary_coin_name = parameter.get('params', None).get('config', None) \
             .get('Secondary', None).get('CoinName', None)
 
-        if secondary_coin_name is not None:
+        if secondary_coin_name:
             coin_name = parameter['params']['config']['Primary']['CoinName'] + '|' + secondary_coin_name
         else:
             coin_name = parameter['params']['config']['Primary']['CoinName']
