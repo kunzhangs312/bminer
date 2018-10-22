@@ -82,12 +82,24 @@ def read_db(table=None, lines=10):
 
         print("*" * 50 + "Mine Info Table" + "*" * 50)
         infos = MineInfo.select().order_by(MineInfo.create_time.desc()).limit(lines)
-        print('id, coin_name, overclock, program, algorithm, wallet_address, pool_address, miner_prefix, '
-              'miner_postfix, mine_status, update_time, create_time')
+        # print('id, coin_name, overclock, program, algorithm, wallet_address, pool_address, miner_prefix, '
+        #       'miner_postfix, mine_status, update_time, create_time')
         for info in infos:
-            print(info.id, info.coin_name, info.overclock, info.program, info.algorithm, info.wallet_address,
-                  info.pool_address, info.miner_prefix, info.miner_postfix, info.mine_status, info.update_time,
-                  info.create_time)
+            # print(info.id, info.coin_name, info.overclock, info.program, info.algorithm, info.wallet_address,
+            #       info.pool_address, info.miner_prefix, info.miner_postfix, info.mine_status, info.update_time,
+            #       info.create_time)
+            print("%15s:%s" % ("id", info.id))
+            print("%15s:%s" % ("coin_name", info.coin_name))
+            print("%15s:%s" % ("overclock", info.overclock))
+            print("%15s:%s" % ("program", info.program))
+            print("%15s:%s" % ("algorithm", info.algorithm))
+            print("%15s:%s" % ("wallet_address", info.wallet_address))
+            print("%15s:%s" % ("pool_address", info.pool_address))
+            print("%15s:%s" % ("miner_prefix", info.miner_prefix))
+            print("%15s:%s" % ("miner_postfix", info.miner_postfix))
+            print("%15s:%s" % ("mine_status", info.mine_status))
+            print("%15s:%s" % ("update_time", info.update_time))
+            print("%15s:%s" % ("create_time", info.create_time))
 
 
 if __name__ == '__main__':
