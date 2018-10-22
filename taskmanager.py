@@ -254,19 +254,38 @@ def create_or_update_mine_info(parameter, mine_status):
     mine_info = MineInfo.select().order_by(MineInfo.create_time.desc()).limit(1)
     try:
         mine_info = MineInfo.get_or_none(id=mine_info[0])
-        if parameter is not None:
-            mine_info.coin_name = coin_name
-            mine_info.overclock = overclock
-            mine_info.program = program
-            mine_info.algorithm = algorithm
-            mine_info.wallet_address = wallet_address
-            mine_info.pool_address = pool_address
-            mine_info.miner_prefix = miner_prefix
-            mine_info.miner_postfix = miner_postfix
+        if mine_info is not None:
+            if parameter is not None:
+                mine_info.coin_name = coin_name
+                mine_info.overclock = overclock
+                mine_info.program = program
+                mine_info.algorithm = algorithm
+                mine_info.wallet_address = wallet_address
+                mine_info.pool_address = pool_address
+                mine_info.miner_prefix = miner_prefix
+                mine_info.miner_postfix = miner_postfix
 
-        mine_info.mine_status = mine_status
-        mine_info.update_time = datetime.now()
-        mine_info.save()
+                log.info("update mine info: ")
+                log.info("%15s:%s" % ("coin_name", mine_info.coin_name))
+                log.info("%15s:%s" % ("overclock", mine_info.overclock))
+                log.info("%15s:%s" % ("program", mine_info.program))
+                log.info("%15s:%s" % ("algorithm", mine_info.algorithm))
+                log.info("%15s:%s" % ("wallet_address", mine_info.wallet_address))
+                log.info("%15s:%s" % ("pool_address", mine_info.pool_address))
+                log.info("%15s:%s" % ("miner_prefix", mine_info.miner_prefix))
+                log.info("%15s:%s" % ("miner_postfix", mine_info.miner_postfix))
+                log.info("%15s:%s" % ("mine_status", mine_info.mine_status))
+                log.info("%15s:%s" % ("update_time", mine_info.update_time))
+                log.info("%15s:%s" % ("create_time", mine_info.create_time))
+
+            mine_info.mine_status = mine_status
+            mine_info.update_time = datetime.now()
+            log.info("update mine info: ")
+            log.info("%15s:%s" % ("mine_status", mine_info.mine_status))
+            log.info("%15s:%s" % ("update_time", mine_info.update_time))
+            mine_info.save()
+        else:
+            log.error("can not get mine info record!")
     except Exception as err:
         log.warning(str(err) + ': ' + 'no mine info recode in table, so create it!')
 
@@ -514,7 +533,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 更新本地的挖矿信息数据库
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
-                    create_or_update_mine_info(parameter, mine_status=mine_status)
+                    create_or_update_mine_info(parameter=parameter, mine_status=mine_status)
                 elif action == 'ConfigRestart':     # 配置并重启挖矿，将配置保存到本地配置文件中
                     log.info("execute config restart task")
 
@@ -568,7 +587,7 @@ class TaskHandler(Thread, RabbitMQServer):
 
                     # 更新本地的挖矿信息数据库
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
-                    create_or_update_mine_info(parameter, mine_status=mine_status)
+                    create_or_update_mine_info(parameter=parameter, mine_status=mine_status)
                 elif action == 'Restart':           # 重启矿机
                     log.info("execute restart task")
                     # 在重启之前更新数据库，默认关机操作不会失败
@@ -701,7 +720,7 @@ def system_boot():
 
                     # 更新本地的挖矿信息数据库
                     mine_status = 'mining' if finish_status == 'success' else 'unmining'
-                    create_or_update_mine_info(parameter, mine_status=mine_status)
+                    create_or_update_mine_info(parameter=parameter, mine_status=mine_status)
                 else:
                     log.error("stop all mine program failed, reason: {}".format(failed_reason))
         except Exception as err:
