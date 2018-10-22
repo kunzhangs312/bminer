@@ -650,7 +650,7 @@ def system_boot():
         taskid = operation.taskid
         write_queue = CONFIG['WRITE_QUEUE'] + taskid.upper()
         try:
-            channel.queue_declare(queue=write_queue)
+            channel.queue_declare(queue=write_queue, auto_delete=True)
             resp_info = {'user_id': operation.userid, 'action': operation.action, 'taskid': taskid,
                          'maclist': MAC, 'resp_type': 'completed'}
             channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
