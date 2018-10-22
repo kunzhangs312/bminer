@@ -182,7 +182,7 @@ class TaskReceiver(Thread, RabbitMQServer):
             log.exception(err)
 
     def run(self):
-        log.info('TaskReceiver running ...')
+        log.info('Task Receiver running ...')
 
         # 生成队列，并绑定到交换机上
         read_queue = 'MechineReadQueue' + MAC.upper()
@@ -483,8 +483,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     failed_reason = result['failed_reason']
 
                     if finish_status == "success":
-                        log.info("stop mine program success! sleep 10 second for waiting all mine program shutdown!")
-                        time.sleep(10)
+                        log.info("stop mine program success! sleep 3 second for waiting all mine program shutdown!")
+                        time.sleep(3)
 
                         # 根据配置启动挖矿程序及超频
                         log.info('start mine according to config')
@@ -536,8 +536,8 @@ class TaskHandler(Thread, RabbitMQServer):
                     failed_reason = result['failed_reason']
 
                     if finish_status == "success":
-                        log.info("stop mine program success! sleep 10 second for waiting all mine program shutdown!")
-                        time.sleep(10)
+                        log.info("stop mine program success! sleep 3 second for waiting all mine program shutdown!")
+                        time.sleep(3)
 
                         # 根据配置启动挖矿程序及超频
                         log.info('start mine according to config')
@@ -679,8 +679,8 @@ def system_boot():
                 finish_status = result['finish_status']
                 failed_reason = result['failed_reason']
                 if finish_status == 'success':
-                    log.info("sleep 10 second for waiting all mine program shutdown!")
-                    time.sleep(10)
+                    log.info("sleep 3 second for waiting all mine program shutdown!")
+                    time.sleep(3)
 
                     # 根据配置启动挖矿程序及超频
                     log.info('start mine according to config')
