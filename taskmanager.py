@@ -652,7 +652,8 @@ def system_boot():
         try:
             channel.queue_declare(queue=write_queue, auto_delete=True)
             resp_info = {'user_id': operation.userid, 'action': operation.action, 'taskid': taskid,
-                         'maclist': MAC, 'resp_type': 'completed'}
+                         'maclist': [MAC], 'resp_type': 'completed',
+                         'result': {'finish_status': 'success', 'failed_reason': '', 'finish_time': int(time.time())}}
             channel.basic_publish(exchange='', routing_key=write_queue, body=json.dumps(resp_info))
         except Exception as err:
             log.error("Error while sending data to queue:\n%s" % err)
