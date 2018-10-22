@@ -264,7 +264,7 @@ def create_or_update_mine_info(parameter, mine_status):
             mine_info.miner_prefix = miner_prefix
             mine_info.miner_postfix = miner_postfix
 
-        mine_info.mine_status = mine_info
+        mine_info.mine_status = mine_status
         mine_info.update_time = datetime.now()
         mine_info.save()
     except Exception as err:
