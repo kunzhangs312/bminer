@@ -26,10 +26,11 @@ def output_exit(result):
     :return:
     """
     print(json.dumps(result))
+    sys.stdout.flush()          # 十分重要：os._exit()退出时不会清空stdout，导致调用该脚本的进程无法获取返回值
     os._exit(0)
 
 
-def start_mine():
+def start_miner():
     # params_str = """{"id":24774,"service_type":"Zcash","status":0,"on":true,
     # "config":{"Version":3,"Overclock":1,"Program":"xmrig-amd","Algorithm":"ethash",
     # "Extra":"","IsManualPool":0,"Primary":{"CoinName":"eth",
@@ -92,7 +93,7 @@ def shutdown():
     :return:
     """
     log.warning("timeout")
-    result = {"finish_status": "failed", "failed_reason": "timeout"}
+    result = {"finish_status": "failed", "failed_reason": "start miner timeout"}
     output_exit(result)
 
 
@@ -104,7 +105,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:  # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_CONF_PATH = sys.argv[1] + '/' + MINE_CONF_NAME
 
-    t = Thread(name='Thread-startminer', target=start_mine)
+    t = Thread(name='Thread-startminer', target=start_miner)
     t.start()
 
     tm = Timer(60, shutdown)

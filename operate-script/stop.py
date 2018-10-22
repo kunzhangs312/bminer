@@ -37,10 +37,11 @@ def output_exit(result):
     :return:
     """
     print(json.dumps(result))
+    sys.stdout.flush()  # 十分重要：os._exit()退出时不会清空stdout，导致调用该脚本的进程无法获取返回值
     os._exit(0)
 
 
-def stop_mineprogram():
+def stop_miner():
     """
     关闭所有的挖矿程序
     """
@@ -83,7 +84,7 @@ def shutdown():
     :return:
     """
     log.warning("timeout")
-    result = {"finish_status": "failed", "failed_reason": "timeout"}
+    result = {"finish_status": "failed", "failed_reason": "stop miner timeout"}
     output_exit(result)
 
 
@@ -91,7 +92,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:      # 通过taskmanager.py脚本调用，则必须传递operate-script目录的路径
         MINE_SCRIPT_PATH = sys.argv[1]
 
-    t = Thread(name='Thread-stopminer', target=stop_mineprogram)
+    t = Thread(name='Thread-stopminer', target=stop_miner)
     t.start()
 
     tm = Timer(10, shutdown)
