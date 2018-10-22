@@ -241,10 +241,10 @@ def create_or_update_mine_info(parameter, mine_status):
             .get('Secondary', None).get('PoolAddresses', None)
         if secondary_pool_address:
             pool_address = parameter.get('params', None).get('config', None) \
-                               .get('Primary', None).get('PoolAddresses', None) + "|" + secondary_pool_address
+                               .get('Primary', None).get('PoolAddress', None) + "|" + secondary_pool_address
         else:
             pool_address = parameter.get('params', None).get('config', None) \
-                .get('Primary', None).get('PoolAddresses', None)
+                .get('Primary', None).get('PoolAddress', None)
 
         miner_prefix = parameter.get('params', None).get('config', None) \
             .get('MinerPrefix', None)
