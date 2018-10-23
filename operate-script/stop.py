@@ -16,7 +16,10 @@ if LOGGER_PATH not in sys.path:
 
 import logger
 
-log = logger.create_logger(file_name='mine_stop.log', enable_stream=False)
+TASK_MANAGER_DIR = os.path.abspath(os.path.dirname(__file__) + os.path.sep + "..")
+LOG_PATH = TASK_MANAGER_DIR + '/' + 'mine_stop.log'
+
+log = logger.create_logger(file_name=LOG_PATH, enable_stream=False)
 
 
 def get_mineprogram():

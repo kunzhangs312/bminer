@@ -38,11 +38,14 @@ PWD = os.getcwd()
 MINE_SCRIPT_DIRNAME = 'miner-script'
 MINE_SCRIPT_PWD = PWD + '/' + MINE_SCRIPT_DIRNAME
 
+CURRENT_DIR = os.path.split(os.path.abspath(__file__))[0]
+DB_PATH = CURRENT_DIR + '/' + 'operation.db'
+LOG_PATH = CURRENT_DIR + '/' + 'taskmanager.log'
 
 # 建立Sqlite数据库连接
-SQDB = SqliteDatabase('operation.db')
+SQDB = SqliteDatabase(DB_PATH)
 
-log = logger.create_logger(file_name='taskmanager.log')
+log = logger.create_logger(file_name=LOG_PATH)
 
 
 class Operation(Model):
